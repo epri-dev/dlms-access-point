@@ -1,6 +1,6 @@
 version: "2.4"
 services:
-    dlms-cim-meter1:
+    dlms-access-point-meter1:
         build:
             context: src
             target: demo
@@ -14,7 +14,7 @@ services:
         volumes:
             - ./src:/tmp:z
 
-    dlms-cim-meter2:
+    dlms-access-point-meter2:
         build:
             context: src
             target: demo
@@ -28,15 +28,15 @@ services:
         volumes:
             - ./src:/tmp:z
 
-    dlms-cim-hes:
+    dlms-access-point-hes:
         build:
             context: src
             target: demo
         entrypoint: 
             - /tmp/HESsim
             - "8888"
-            - dlms-cim-meter1
-            - dlms-cim-meter2
+            - dlms-access-point-meter1
+            - dlms-access-point-meter2
         expose:
             - "8888/tcp"
         networks:
@@ -45,20 +45,20 @@ services:
         volumes:
             - ./src:/tmp:z
 
-    dlms-cim-cis:
+    dlms-access-point-cis:
         build:
             context: src
             target: demo
         entrypoint: 
             - /tmp/CISsim
-            - "http://dlms-cim-hes:8888"
-            - "http://dlms-cim-cis"
+            - "http://dlms-access-point-hes:8888"
+            - "http://dlms-access-point-cis"
         networks:
             - hesnet
         volumes:
             - ./src:/tmp:z
 
-    dlms-cim-docs:
+    dlms-access-point-docs:
         build:
             context: doc/html
             target: docserver
