@@ -10,7 +10,11 @@ find_package(Threads REQUIRED)
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_HAS_STD_CHRONO)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR} ${DLMS_LIBRARY_BASE_DIR}/lib/DLMS-COSEM/include/ ${ASIO_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_LIST_DIR}/core/ ${CMAKE_CURRENT_LIST_DIR}/server ${DLMS_LIBRARY_BASE_DIR}/lib/DLMS-COSEM/include/ ${ASIO_INCLUDE_DIR})
+
+# Create the libraries
+add_subdirectory(core)
+add_subdirectory(server)
 
 # Create the documentation 
 add_subdirectory(doc)
@@ -19,18 +23,17 @@ add_subdirectory(doc)
 add_subdirectory(docker)
 
 link_directories(${DLMS_LIBRARY_BASE_DIR}/build/lib/DLMS-COSEM/)
-set(DLMS_COMMON_SOURCES LinuxScheduler.cpp LinuxBaseLibrary.cpp LinuxCore.cpp LinuxDebug.cpp LinuxMemory.cpp LinuxSerial.cpp LinuxSimpleTimer.cpp LinuxSocket.cpp LinuxSynchronization.cpp)
 set(DLMS_SERVER_COMMON_SOURCES LinuxCOSEMServer.cpp LinuxClock.cpp LinuxData.cpp LinuxDisconnect.cpp LinuxImageTransfer.cpp)
 
 ## finally some executables
-add_executable(DLMS_sim Linux.cpp ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
-add_executable(Metersim Metersim.cpp ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
-add_executable(HESsim HESsim.cpp ${DLMS_COMMON_SOURCES})
+add_executable(DLMS_sim Linux.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
+add_executable(Metersim Metersim.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
+add_executable(HESsim HESsim.cpp)
 
 ## and the various required libraries
-target_link_libraries(DLMS_sim DLMS-COSEM Threads::Threads)
-target_link_libraries(Metersim DLMS-COSEM Threads::Threads)
-target_link_libraries(HESsim DLMS-COSEM Threads::Threads)
+target_link_libraries(DLMS_sim server core DLMS-COSEM Threads::Threads)
+target_link_libraries(Metersim server core DLMS-COSEM Threads::Threads)
+target_link_libraries(HESsim core DLMS-COSEM Threads::Threads)
 
 ## install things
 INSTALL(TARGETS Metersim HESsim DESTINATION bin)
