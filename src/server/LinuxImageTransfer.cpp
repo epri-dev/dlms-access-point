@@ -1,8 +1,8 @@
 // ===========================================================================
-// Copyright (c) 2018, Electric Power Research Institute (EPRI)
+// Copyright (c) 2020, Electric Power Research Institute (EPRI)
 // All rights reserved.
 //
-// DLMS-COSEM ("this software") is licensed under BSD 3-Clause license.
+// dlms-access-point ("this software") is licensed under BSD 3-Clause license.
 //
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -73,6 +73,7 @@
 #include "LinuxCOSEMServer.h"
 #include "COSEMAddress.h"
 #include "LinuxImageTransfer.h"
+#include <iomanip>
 
 namespace EPRI
 {
@@ -163,55 +164,39 @@ namespace EPRI
         const Cosem_Attribute_Descriptor& Descriptor,
         SelectiveAccess * pSelectiveAccess)
     {
+        APDUConstants::Data_Access_Result result=APDUConstants::Data_Access_Result::object_unavailable;
         switch (pAttribute->AttributeID) {
             case ATTR_IMAGE_BLOCK_SIZE:
+            /// \todo Why doesn't `block_size` work here?
+#if 1
                 pAttribute->Append(512);
-                return APDUConstants::Data_Access_Result::success;
+#else
+                pAttribute->Append(block_size);
+#endif
+                result = APDUConstants::Data_Access_Result::success;
+                break;
+            case ATTR_IMAGE_TRANSFERRED_BLOCKS_STATUS:
+                pAttribute->Append(block_status);
+                result = APDUConstants::Data_Access_Result::success;
+                break;
+            case ATTR_IMAGE_FIRST_NOT_TRANSFERRED_BLOCK_NUMBER:
+                pAttribute->Append(first_not_transferred_block_number);
+                result = APDUConstants::Data_Access_Result::success;
                 break;
             case ATTR_IMAGE_TRANSFER_ENABLED:
                 pAttribute->Append(true);
-                return APDUConstants::Data_Access_Result::success;
+                result = APDUConstants::Data_Access_Result::success;
                 break;
-            case ATTR_IMAGE_TRANSFERRED_BLOCKS_STATUS:
-            case ATTR_IMAGE_FIRST_NOT_TRANSFERRED_BLOCK_NUMBER:
             case ATTR_IMAGE_TRANSFER_STATUS:
+                pAttribute->Append(status);
+                result = APDUConstants::Data_Access_Result::success;
+                break;
             case ATTR_IMAGE_TO_ACTIVATE_INFO:
+                /// \todo implement image-to-activate-info attribute
             default:
-                return APDUConstants::Data_Access_Result::object_unavailable;
                 break;
         }
-        return APDUConstants::Data_Access_Result::object_unavailable;
-    }
-
-    APDUConstants::Data_Access_Result LinuxImageTransfer::InternalSet(const AssociationContext& Context,
-        ICOSEMAttribute * pAttribute,
-        const Cosem_Attribute_Descriptor& Descriptor,
-        const DLMSVector& Data,
-        SelectiveAccess * pSelectiveAccess)
-    {
-        APDUConstants::Data_Access_Result RetVal = APDUConstants::Data_Access_Result::temporary_failure;
-        try
-        {
-            DLMSValue Value;
-
-            RetVal = ICOSEMObject::InternalSet(Context, pAttribute, Descriptor, Data, pSelectiveAccess);
-            if (APDUConstants::Data_Access_Result::success == RetVal &&
-                pAttribute->GetNextValue(&Value) == COSEMType::GetNextResult::VALUE_RETRIEVED)
-            {
-                m_Values[Descriptor.instance_id.GetValueGroup(EPRI::COSEMObjectInstanceID::VALUE_GROUP_E)] =
-                    DLMSValueGet<std::string>(Value);
-                RetVal = APDUConstants::Data_Access_Result::success;
-            }
-            else
-            {
-                RetVal = APDUConstants::Data_Access_Result::type_unmatched;
-            }
-        }
-        catch (...)
-        {
-            RetVal = APDUConstants::Data_Access_Result::type_unmatched;
-        }
-        return RetVal;
+        return result;
     }
 
     APDUConstants::Action_Result LinuxImageTransfer::InternalAction(const AssociationContext& Context,
@@ -223,18 +208,51 @@ namespace EPRI
         APDUConstants::Action_Result result=APDUConstants::Action_Result::object_unavailable;
         switch (pMethod->MethodID)
         {
+        case METHOD_IMAGE_TRANSFER_INITIATE:
+            std::cout << "ImageTransfer Initiate ACTION Received\n";
+            if (Parameters) {
+                DLMSVector value = Parameters.value();
+                image_id = DLMSValueGet<OCTET_STRING_CType>(value);
+                image_size = DLMSValueGet<DOUBLE_LONG_UNSIGNED_CType>(value);
+                std::cout << "image_id = {";
+                for (unsigned i; i < image_id.Size(); ++i) {
+                    std::cout << std::hex << std::setw(2) << std::setfill('0') << "0x" << image_id[i] << " ";
+                }
+                std::cout << "}\n";
+                std::cout << "image_size = " << image_size << '\n';
+                status = IMAGE_TRANSFER_INITIATED;
+                block_status.reset();
+                first_not_transferred_block_number = 0;
+                result = APDUConstants::Action_Result::success;
+            }
+            break;
+        case METHOD_IMAGE_BLOCK_TRANSFER:
+            std::cout << "ImageTransfer Block Transfer ACTION Received\n";
+            if (Parameters) {
+                DLMSVector value = Parameters.value();
+                std::size_t block_num = DLMSValueGet<DOUBLE_LONG_UNSIGNED_CType>(value);
+                DLMSVector fragment{DLMSValueGet<OCTET_STRING_CType>(value)};
+                std::cout << "block_num = " << block_num << '\n';
+#if 0
+                std::cout << "image_id = {";
+                for (unsigned i; i < image_id.Size(); ++i) {
+                    std::cout << std::hex << std::setw(2) << std::setfill('0') << "0x" << image_id[i] << " ";
+                }
+                std::cout << "}\n";
+#endif
+                result = APDUConstants::Action_Result::success;
+            }
+            break;
+        case METHOD_IMAGE_VERIFY:
+            std::cout << "ImageTransfer ACTION Received\n";
+            result = APDUConstants::Action_Result::success;
+            break;
         case METHOD_IMAGE_ACTIVATE:
             std::cout << "Activating Image\n";
             result = APDUConstants::Action_Result::success;
             break;
-        case METHOD_IMAGE_TRANSFER_INITIATE:
-        case METHOD_IMAGE_BLOCK_TRANSFER:
-        case METHOD_IMAGE_VERIFY:
-            std::cout << "ImageTransfer ACTION Received" << std::endl;
-            result = APDUConstants::Action_Result::success;
-            break;
         default:
-            std::cout << "Unknown ImageTransfer ACTION Received" << std::endl;
+            std::cout << "Unknown ImageTransfer ACTION Received\n";
             break;
         }
         //
@@ -242,4 +260,7 @@ namespace EPRI
         //
         return result;
     }
+
+// Private functions
+
 }

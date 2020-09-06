@@ -1,8 +1,8 @@
 // ===========================================================================
-// Copyright (c) 2018, Electric Power Research Institute (EPRI)
+// Copyright (c) 2020, Electric Power Research Institute (EPRI)
 // All rights reserved.
 //
-// DLMS-COSEM ("this software") is licensed under BSD 3-Clause license.
+// dlms-access-point ("this software") is licensed under BSD 3-Clause license.
 //
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -76,10 +76,17 @@
 #include "COSEMDevice.h"
 #include "interfaces/IData.h"
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
 namespace EPRI
 {
     const ClassIDType CLSID_ImageTransfer = 18;
 
+    /**
+     * implements the Image Transfer object (class 18, version 0)
+     */
     class ImageTransfer : public ICOSEMInterface
     {
         COSEM_DEFINE_SCHEMA(DoubleLongUnsignedSchema)
@@ -160,19 +167,26 @@ namespace EPRI
         virtual APDUConstants::Data_Access_Result InternalGet(const AssociationContext& Context,
             ICOSEMAttribute * pAttribute,
             const Cosem_Attribute_Descriptor& Descriptor,
-            SelectiveAccess * pSelectiveAccess) final;
-        virtual APDUConstants::Data_Access_Result InternalSet(const AssociationContext& Context,
-            ICOSEMAttribute * pAttribute,
-            const Cosem_Attribute_Descriptor& Descriptor,
-            const DLMSVector& Data,
-            SelectiveAccess * pSelectiveAccess) final;
+            SelectiveAccess * pSelectiveAccess) final override;
         virtual APDUConstants::Action_Result InternalAction(const AssociationContext& Context,
             ICOSEMMethod * pMethod,
             const Cosem_Method_Descriptor& Descriptor,
             const DLMSOptional<DLMSVector>& Parameters,
             DLMSVector * pReturnValue = nullptr) final;
 
-        std::string m_Values[10];
+    private:
+        /// The size of a block in bytes
+        static constexpr std::size_t block_size{512};
+        /// The number of blocks in an image
+        static constexpr std::size_t block_count{256};
+        using ImageBlock = std::array<std::uint8_t, block_size>;
+        std::array<ImageBlock, block_count> image;
+        std::uint8_t status{IMAGE_TRANSFER_NOT_INITIATED};
+        DLMSBitSet block_status;
+        DLMSVector image_id;
+        std::size_t image_size;
 
+        /// the block number of the first block not yet transferred
+        unsigned first_not_transferred_block_number{0};
     };
 }
