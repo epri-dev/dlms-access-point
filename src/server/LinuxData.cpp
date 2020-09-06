@@ -1,8 +1,8 @@
 // ===========================================================================
-// Copyright (c) 2018, Electric Power Research Institute (EPRI)
+// Copyright (c) 2020, Electric Power Research Institute (EPRI)
 // All rights reserved.
 //
-// DLMS-COSEM ("this software") is licensed under BSD 3-Clause license.
+// dlms-access-point ("this software") is licensed under BSD 3-Clause license.
 //
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -73,6 +73,7 @@
 #include "LinuxCOSEMServer.h"
 #include "COSEMAddress.h"
 #include "LinuxData.h"
+#include <sstream>
 
 namespace EPRI
 {
@@ -84,7 +85,11 @@ namespace EPRI
     {
         for (int Index = 0; Index < 10; ++Index)
         {
-            m_Values[Index] = "LINUXDATA" + std::to_string(Index);
+            std::stringstream ss;
+            for (auto n{1u << Index}; n; --n) {
+                ss << "LINUXDATA" << Index;
+            }
+            m_Values[Index] = ss.str();
         }
     }
 
