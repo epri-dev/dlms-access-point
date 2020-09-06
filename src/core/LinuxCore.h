@@ -1,8 +1,8 @@
 // ===========================================================================
-// Copyright (c) 2018, Electric Power Research Institute (EPRI)
+// Copyright (c) 2020, Electric Power Research Institute (EPRI)
 // All rights reserved.
 //
-// DLMS-COSEM ("this software") is licensed under BSD 3-Clause license.
+// dlms-access-point ("this software") is licensed under BSD 3-Clause license.
 //
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
