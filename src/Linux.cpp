@@ -1,8 +1,8 @@
 // ===========================================================================
-// Copyright (c) 2018, Electric Power Research Institute (EPRI)
+// Copyright (c) 2020, Electric Power Research Institute (EPRI)
 // All rights reserved.
 //
-// DLMS-COSEM ("this software") is licensed under BSD 3-Clause license.
+// dlms-access-point ("this software") is licensed under BSD 3-Clause license.
 //
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -255,6 +255,19 @@ public:
                 }
                 break;
             
+            case IAssociationLN::ATTR_OBJ_LIST:
+                {
+                    /// \todo Parse list of objects
+                    CurrentAssociation.object_list = Response.Result.get<DLMSVector>();
+                    if (COSEMType::VALUE_RETRIEVED == CurrentAssociation.object_list.GetNextValue(&Value)) 
+                    {
+                        DLMSSequence& Element = DLMSValueGetSequence(Value);
+                        std::cout << "Size of element is " << sizeof(Element) << "\n";
+                        // std::cout << "Element: " << Element << "\n";
+                    }
+                    Base()->GetDebug()->TRACE("This is where we would show some objects.  Sorry.");
+                }
+                break;
             default:
                 Base()->GetDebug()->TRACE("Attribute %d not supported for parsing.", Response.Descriptor.attribute_id);
                 break;
