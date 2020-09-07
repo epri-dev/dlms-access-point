@@ -1,50 +1,117 @@
-# How to modify the software {#design}
+# How it works {#design}
 The software is composed of a number of pieces, which together make up the simulation.  The components are:
 
-    - Meter simulator(s)
-    - Head-End System (HES) simulator
-    - Meter Data Management System (MDMS) simulator
+  1. Meter simulator(s)
+  2. Head-End System (HES) simulator
+  3. Access Point (AP) simulator
 
 Each of the components is described in more detail below.
 
 ## Meter simulator
 The meter simulator uses the EPRI DLMS/COSEM library and contains a small collection of standard COSEM objects.  The objects include a `Clock` component and a `Disconnect` object.  The simulator is intended to simulate only network traffic rather than a real device, so the objects exist but the functionality and the data in them is not, and is not intended to be realistic.  The meter simulator listens on the standard DLMS/COSEM port of 4059.
 
+It implements the following classes of objects:
+
+### Data class_id = 1, version = 0 { 0, 0, 96, 1, {0, 9}, 255 }
+    Get and Set both implemented
+
+### Clock class_id = 8, version = 0 { 0, 0, 1, 0, 0, 255 }
+    all present but unimplemeneted
+
+<table>
+<caption id="Clock_attributes">Clock Attributes</caption>
+<tr><th>Number</th><th>Name</th><th>Status</th></tr>
+<tr><td>2</td><td>ATTR_TIME</td><td></td></tr>
+<tr><td>3</td><td>ATTR_TIME_ZONE</td><td></td></tr>
+<tr><td>4</td><td>ATTR_STATUS</td><td></td></tr>
+<tr><td>5</td><td>ATTR_DST_BEGIN</td><td></td></tr>
+<tr><td>6</td><td>ATTR_DST_END</td><td></td></tr>
+<tr><td>7</td><td>ATTR_DST_DEVIATION</td><td></td></tr>
+<tr><td>8</td><td>ATTR_DST_ENABLED</td><td></td></tr>
+<tr><td>9</td><td>ATTR_CLOCK_BASE</td><td></td></tr>
+</table>
+
+<table>
+<caption id="Clock_Methods">Clock Methods</caption>
+<tr><th>Number</th><th>Name</th><th>Status</th></tr>
+<tr><td>1<td>METHOD_ADJUST_TO_QUARTER<td></td></tr>
+<tr><td>2<td>METHOD_ADJUST_TO_QUARTER<td></td></tr>
+<tr><td>3<td>METHOD_ADJUST_TO_MEAS_PERIOD<td></td></tr>
+<tr><td>4<td>METHOD_ADJUST_TO_MINUTE<td></td></tr>
+<tr><td>5<td>METHOD_ADJUST_TO_PRESET_TIME<td></td></tr>
+<tr><td>6<td>METHOD_PRESET_ADJUSTING_TIME<td></td></tr>
+<tr><td>7<td>METHOD_SHIFT_TIME<td></td></tr>
+</table>
+
+### Association SN class_id = 12, version = 4 {0, 0, 40, 0, {0, 1}, 255}
+nothing implemented
+
+### Association LN class_id = 15, version = 4 {0, 0, 40, 0, {0, 1}, 255}
+<table>
+<caption id="Association_LN_Attributes">Association LN Attributes</caption>
+<tr><th>Number</th><th>Name</th><th>Status</th></tr>
+<tr><td>2<td>ATTR_OBJ_LIST<td> not implemented; returns unavailable</td></tr>
+<tr><td>3<td>ATTR_PARTNERS_ID<td> returns clientSAP, ServerSAP</td></tr>
+<tr><td>4<td>ATTR_CON_NAME<td> return application context name</td></tr>
+<tr><td>5<td>ATTR_XDLMS_CON_INFO<td> implemented</td></tr>
+<tr><td>6<td>ATTR_AUTH_MECH_NAME<td> implemented</td></tr>
+<tr><td>7<td>ATTR_SECRET<td> read_write_denied</td></tr>
+<tr><td>8<td>ATTR_STATUS<td> implemented</td></tr>
+<tr><td>9<td>ATTR_SECURITY_SETUP_REF<td> read_write_denied</td></tr>
+<tr><td>10<td>ATTR_USER_LIST<td> not implemented</td></tr>
+<tr><td>11<td>ATTR_CURRENT_USER<td> not implemented</td></tr>
+</table>
+
+### Disconnect class_id = 70, version = 0 { 0, 0, 96, 3, 10, 255 }
+<table>
+<caption id="Disconnect_attributes">Disconnect Attributes</caption>
+<tr><th>Number</th><th>Name</th><th>Status</th></tr>
+<tr><td>2<td>ATTR_OUTPUT_STATE<td> implemented</td></tr>
+<tr><td>3<td>ATTR_CONTROL_STATE<td> implemented</td></tr>
+<tr><td>4<td>ATTR_CONTROL_MODE<td> implemented</td></tr>
+</table>
+
+<table>
+<caption id="Disconnect_Methods">Disconnect Methods</caption>
+<tr><th>Number</th><th>Name</th><th>Status</th></tr>
+<tr><td>1<td>METHOD_REMOTE_DISCONNECT<td> implemented</td></tr>
+<tr><td>2<td>METHOD_REMOTE_RECONNECT<td> implemented</td></tr>
+</table>
+
+### ImageTransfer class_id = 18, version = 0 { 0, 0, 44, 0, 0, 255 }
+<table>
+<caption id="ImageTransfer_attributes">ImageTransfer Attributes</caption>
+<tr><th>Number</th><th>Name</th><th>Status</th></tr>
+<tr><td>2<td>ATTR_IMAGE_BLOCK_SIZE<td> implemented</td></tr>
+<tr><td>3<td>ATTR_IMAGE_TRANSFERRED_BLOCKS_STATUS<td> implemented</td></tr>
+<tr><td>4<td>ATTR_IMAGE_FIRST_NOT_TRANSFERRED_BLOCK_NUMBER<td> implemented</td></tr>
+<tr><td>5<td>ATTR_IMAGE_TRANSFER_ENABLED<td> implemented</td></tr>
+<tr><td>6<td>ATTR_IMAGE_TRANSFER_STATUS<td> implemented</td></tr>
+<tr><td>7<td>ATTR_IMAGE_TO_ACTIVATE_INFO<td> implemented</td></tr>
+</table>
+
+<table>
+<caption id="ImageTransfer_Methods">ImageTransfer Methods</caption>
+<tr><th>Number</th><th>Name</th><th>Status</th></tr>
+<tr><td>1<td>METHOD_IMAGE_TRANSFER_INITIATE<td> implemented</td></tr>
+<tr><td>2<td>METHOD_IMAGE_BLOCK_TRANSFER<td> implemented</td></tr>
+<tr><td>3<td>METHOD_IMAGE_VERIFY<td> implemented</td></tr>
+<tr><td>4<td>METHOD_IMAGE_ACTIVATE<td> implemented</td></tr>
+</table>
+
 ## HES simulator
-The Head-End System simulator has three roles:
+The Head-End System simulator here has only one job, which is to communicate with the simulated meters.  At the moment, the HES only has three things that it can do:
 
-  1. it listens for CIM requests
-  2. it translates CIM requests into DLMS (and the reverse)
-  3. it communicates with meters
+  1. get the time of day from the Clock object (implemented via the EPRI::LinuxClock class)
+  2. operate the connect/disconnect via the Disconnect object (implemented via the EPRI::LinuxDisconnect class)
+  3. read or write a large amount of data (implemented via the EPRI::LinuxImageTransfer class)
 
-At the moment, the simulator only listens for service disconnect and reconnect messages.
+## Access Point (AP) simulator
+The AP can operate in any of three Modes:
 
-## CIS simulator
-The Customer Information System simulator does only one thing, which is to send CIM service disconnect and service reconnect messages to the HES simulator.
+ 1. as a lower layer router only (Mode 1)
+ 2. as a store-and-forward network (Mode 2)
+ 3. as a hybrid device performing both functions (Mode 3)
 
-## CIM design
-The CIM component uses the gSOAP library to simplify the handling of SOAP requests that conform to the CIM standard XML schema.  The schema files are in a `xsd` subdirectory and the Web Service Definition Language (WSDL) file is in the `wsdl` subdirectory.  These components are transformed automatically by gSOAP into C++ code that can then be used by this set of programs.  Simplified versions of just the CIM portion (that is, no meter communications or DLMS) are implemented in two simplified test programs called `disconnectclient` and `disconnectserver`.  Their sole purpose is as an illustration to how that portion of the communications works and they will not be mentioned further in this document.
 
-Simply by adding the appropriate wsdl and xsd files, one can quickly create new code to implement other CIM message types.
-
-## How to add a COSEM object
-One obvious thing that one might want to do if one is adding new CIM message types is to also add the corresponding COSEM object or objects to the meter simulator.
-
-Adding a new COSEM object to the code is best done in a series of steps, starting with an existing class.  For this explanation, we will add the Image Transfer class (`class_id` = 18) based on the code for the `LinuxDisconnect` object.
-
- 1. Copy the `LinuxDisconnect` files.  In this case, copy `LinuxDisconnect.cpp` to `LinuxImageTransfer.cpp` and `include/LinuxDisconnect.h` to `include/LinuxImageTransfer.h`
- 2. Add the files to `CMakeList.txt`.  Add the `LinuxImageTransfer.cpp` file to the list of sources used to build the executable.
- 3. Add the new object to the `LinuxCOSEMServer.cpp` file as a `LOGICAL_DEVICE_OBJECT` and to the `LinuxCOSEMServer.h` file.
- 4. Add the new include file to the `LinuxCOSEMServer.h` file.
- 5. Within the new `LinuxImageTransfer.h` file, create the appropriate `ClassIDType`.  In this case we'll use `const ClassIDType CLSID_ImageTransfer = 18;`.
- 6. Replace the class names `Disconnect`, `IDisconnect` and `LinuxDisconnect` with appropriate replacements (e.g. `ImageTransfer`, `IImageTransfer` and `LinuxImageTransfer`). 
-
-At this point the code should compile, but it will effectively be a duplicate of the copied code.  That is, in this case, it will be a `Disconnect` COSEM object, but having a `class_id = 18`.  What's next is to add the specific functionality of the new class, which can be done in the following steps:
-
- 1. Add the appropriate `COSEMAttribute` enum and declarations in the `.h` file and then the corresponding attributes in the `.cpp` file.  For now, it's sufficient to simply use `IntegerSchema` for all attributes.  This will be fixed later.
- 2. Add the appropriate `COSEMMethod` enum and declarations in the `.h` file and into the `.cpp` file.  As above, one can use `IntegerSchema` for all methods.
- 3. Add in the appropriate schemas for each attribute.  How this is done depends on the schema type.  For example, for a COSEM `enum` type, a C++ `class enum` is used.
- 4. Add in the appropriate schemas for each method. This is exactly like the previous step; the only difference is in usage.
- 5. Set the OBIS code for the class in the `.cpp` file.  For `ImageTransfer`, the OBIS code is `0-0.44.0.0*255`.
- 6. Add class-specific behavior.  For example, the `image_verify` method might check a CRC of the received image and return a result.  This may also require some local data, which should be in the most derived class (in this case, the `LinuxImageTransfer` class.)
-
+See [Introduction](@ref mainpage) for more information on these modes.
