@@ -73,6 +73,8 @@
 #include "LinuxCOSEMServer.h"
 #include "COSEMAddress.h"
 #include "LinuxClock.h"
+#include <ctime>
+#include <vector>
 
 namespace EPRI
 {
@@ -89,9 +91,31 @@ namespace EPRI
         const Cosem_Attribute_Descriptor& Descriptor, 
         SelectiveAccess * pSelectiveAccess)
     {
+        auto retval = APDUConstants::Data_Access_Result::object_unavailable;
         switch (pAttribute->AttributeID)
         {
         case ATTR_TIME:
+            {
+                std::time_t t = std::time(nullptr);
+                auto tm = std::localtime(&t);
+                std::vector<std::uint8_t> time{{ 
+                    static_cast<std::uint8_t>((tm->tm_year + 1900) >> 8),
+                    static_cast<std::uint8_t>((tm->tm_year + 1900) & 0xff),
+                    static_cast<std::uint8_t>(tm->tm_mon + 1),
+                    static_cast<std::uint8_t>(tm->tm_mday),
+                    static_cast<std::uint8_t>(tm->tm_wday ? tm->tm_wday : 7),
+                    static_cast<std::uint8_t>(tm->tm_hour),
+                    static_cast<std::uint8_t>(tm->tm_min),
+                    static_cast<std::uint8_t>(tm->tm_sec),
+                    0u,  // hundredths of a second
+                    0u, // deviation high
+                    0u, // deviation low
+                    static_cast<std::uint8_t>(tm->tm_isdst > 0 ? 0x80 : 0)
+                }};
+                pAttribute->Append(time);
+            }
+            retval = APDUConstants::Data_Access_Result::success;
+            break;
         case ATTR_TIME_ZONE:
         case ATTR_STATUS:
         case ATTR_DST_BEGIN:
@@ -106,7 +130,7 @@ namespace EPRI
         //
         // TODO
         //
-        return APDUConstants::Data_Access_Result::object_unavailable;
+        return retval;
     }
 
     APDUConstants::Action_Result LinuxClock::InternalAction(const AssociationContext& Context,
