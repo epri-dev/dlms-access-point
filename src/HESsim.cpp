@@ -68,17 +68,7 @@
 // FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// 
-
-#include <iostream>
-#include <cstdio>
-#include <time.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <iomanip>
-#include <asio.hpp>
-#include <algorithm>
-#include <string>
+//
 
 #include "LinuxBaseLibrary.h"
 #include "LinuxCOSEMServer.h"
@@ -89,186 +79,101 @@
 #include "tcpwrapper/TCPWrapper.h"
 #include "dlms-access-pointConfig.h"
 
-using namespace std;
-using namespace EPRI;
-using namespace asio;
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <time.h>
+#include <ctype.h>
+#include <unistd.h>
+#include <iomanip>
+#include <asio.hpp>
+#include <algorithm>
+#include <string>
+#include <chrono>
+#include <thread>
 
-class AppBase
-{
-public:
-    typedef std::function<void(const std::string&)> ReadLineFunction;
-
-    AppBase(LinuxBaseLibrary& BL) : 
-        m_Base(BL), m_Input(BL.get_io_service(), ::dup(STDIN_FILENO)), 
-        m_Output(BL.get_io_service(), ::dup(STDOUT_FILENO))
-    {
-    }
-    
-    virtual void Run()
-    {
-        m_Base.Process();
-    }
-    
-    virtual void PrintLine(const std::string& Line)
-    {
-        asio::write(m_Output, asio::buffer(Line));
-    }
-    
-    virtual void ReadLine(ReadLineFunction Handler)
-    {
-        asio::async_read_until(m_Input,
-            m_InputBuffer,
-            '\n',
-            std::bind(&AppBase::ReadLine_Handler,
-                      this,
-                      std::placeholders::_1,
-                      std::placeholders::_2,
-                      Handler));
-        
-    }
-    
-    virtual std::string GetLine()
-    {
-        asio::read_until(m_Input, m_InputBuffer, '\n');
-        return ConsumeStream();
-    }
-    
-protected:
-    void ReadLine_Handler(const asio::error_code& Error, size_t BytesTransferred, ReadLineFunction Handler)
-    {
-        if (!Error)
-        {
-            Handler(ConsumeStream());
-        }
-    }
-    
-    std::string ConsumeStream()
-    {
-        std::istream Stream(&m_InputBuffer);
-        std::string  RetVal;
-        std::getline(Stream, RetVal);
-        return RetVal;
-    }
-
-    int GetNumericInput(const std::string& PromptText, int Default)
-    {
-        std::string RetVal;
-        do
-        {
-            PrintLine(PromptText + ": ");
-            RetVal = GetLine();
-            try
-            {
-                if (RetVal.length())
-                    return std::stoi(RetVal, nullptr, 0);	
-                else 
-                    return Default;
-            }
-            catch (const std::invalid_argument&)
-            {
-                PrintLine("Input must be numeric!\n\n");
-            }
-            catch (const std::out_of_range&)
-            {
-                PrintLine("Input is too large!\n\n");
-            }
-        
-        } while (true);
-    }
-
-    std::string GetStringInput(const std::string& PromptText, const std::string& Default)
-    {
-        std::string RetVal;
-        PrintLine(PromptText + ": ");
-        RetVal = GetLine();
-        if (RetVal.empty())
-            RetVal = Default;
-        return RetVal;
-    }
-    
-    LinuxBaseLibrary&           m_Base;
-    posix::stream_descriptor    m_Input;
-    asio::streambuf             m_InputBuffer;
-    posix::stream_descriptor    m_Output;
-    
-};
-
-class LinuxClientEngine : public COSEMClientEngine
+class LinuxClientEngine : public EPRI::COSEMClientEngine
 {
 public:
     LinuxClientEngine() = delete;
-    LinuxClientEngine(const Options& Opt, Transport * pXPort)
-        : COSEMClientEngine(Opt, pXPort)
+    LinuxClientEngine(const Options& Opt, EPRI::Transport * pXPort) :
+        pXPort(pXPort),
+        COSEMClientEngine(Opt, pXPort)
     {
     }
     virtual ~LinuxClientEngine()
     {
+        delete pXPort;
     }
-    
-    virtual bool OnOpenConfirmation(COSEMAddressType ServerAddress)
+
+    virtual bool OnOpenConfirmation(EPRI::COSEMAddressType ServerAddress)
     {
-        Base()->GetDebug()->TRACE("Associated with Server %d...\n",
+        EPRI::Base()->GetDebug()->TRACE("Associated with Server %d...\n",
             ServerAddress);
         return true;
     }
 
     virtual bool OnGetConfirmation(RequestToken Token, const GetResponse& Response)
     {
-        Base()->GetDebug()->TRACE("Get Confirmation for Token %d...\n", Token);
-        if (Response.ResultValid && Response.Result.which() == Get_Data_Result_Choice::data_access_result)
+        EPRI::Base()->GetDebug()->TRACE("Get Confirmation for Token %d...\n", Token);
+        if (Response.ResultValid && Response.Result.which() == EPRI::Get_Data_Result_Choice::data_access_result)
         {
-            Base()->GetDebug()->TRACE("\tReturned Error Code %d...\n", 
-                Response.Result.get<APDUConstants::Data_Access_Result>());
+            EPRI::Base()->GetDebug()->TRACE("\tReturned Error Code %d...\n",
+                Response.Result.get<EPRI::APDUConstants::Data_Access_Result>());
             return false;
         }
-        
-        if (CLSID_IData == Response.Descriptor.class_id)
-        {
-            IData     SerialNumbers;
-            DLMSValue Value;
-        
-            SerialNumbers.value = Response.Result.get<DLMSVector>();
-            if (COSEMType::VALUE_RETRIEVED == SerialNumbers.value.GetNextValue(&Value))
-            {
-                Base()->GetDebug()->TRACE("%s\n", DLMSValueGet<VISIBLE_STRING_CType>(Value).c_str());
-            }
-           
-        }
-        else if (CLSID_IAssociationLN == Response.Descriptor.class_id)
-        {
-            IAssociationLN CurrentAssociation;
-            DLMSValue      Value;
-            
-            switch (Response.Descriptor.attribute_id)
-            {
-            case IAssociationLN::ATTR_PARTNERS_ID:
+
+        switch(Response.Descriptor.class_id) {
+            case EPRI::CLSID_IData:
                 {
-                    CurrentAssociation.associated_partners_id = Response.Result.get<DLMSVector>();
-                    if (COSEMType::VALUE_RETRIEVED == CurrentAssociation.associated_partners_id.GetNextValue(&Value) &&
-                        IsSequence(Value))
+                    EPRI::IData     SerialNumbers;
+                    EPRI::DLMSValue Value;
+
+                    SerialNumbers.value = Response.Result.get<EPRI::DLMSVector>();
+                    if (EPRI::COSEMType::VALUE_RETRIEVED == SerialNumbers.value.GetNextValue(&Value))
                     {
-                        DLMSSequence& Element = DLMSValueGetSequence(Value);
-                        Base()->GetDebug()->TRACE("ClientSAP %d; ServerSAP %d\n", 
-                            DLMSValueGet<INTEGER_CType>(Element[0]),
-                            DLMSValueGet<LONG_UNSIGNED_CType>(Element[1]));
+                        EPRI::Base()->GetDebug()->TRACE("%s\n", EPRI::DLMSValueGet<EPRI::VISIBLE_STRING_CType>(Value).c_str());
+                    }
+
+                }
+                break;
+            case EPRI::CLSID_IAssociationLN:
+                {
+                    EPRI::IAssociationLN CurrentAssociation;
+                    EPRI::DLMSValue      Value;
+
+                    switch (Response.Descriptor.attribute_id)
+                    {
+                    case EPRI::IAssociationLN::ATTR_PARTNERS_ID:
+                        {
+                            CurrentAssociation.associated_partners_id = Response.Result.get<EPRI::DLMSVector>();
+                            if (EPRI::COSEMType::VALUE_RETRIEVED == CurrentAssociation.associated_partners_id.GetNextValue(&Value) &&
+                                IsSequence(Value))
+                            {
+                                EPRI::DLMSSequence& Element = DLMSValueGetSequence(Value);
+                                EPRI::Base()->GetDebug()->TRACE("ClientSAP %d; ServerSAP %d\n",
+                                    EPRI::DLMSValueGet<EPRI::INTEGER_CType>(Element[0]),
+                                    EPRI::DLMSValueGet<EPRI::LONG_UNSIGNED_CType>(Element[1]));
+                            }
+                        }
+                        break;
+
+                    default:
+                        EPRI::Base()->GetDebug()->TRACE("Attribute %d not supported for parsing.", Response.Descriptor.attribute_id);
+                        break;
                     }
                 }
                 break;
-            
-            default:
-                Base()->GetDebug()->TRACE("Attribute %d not supported for parsing.", Response.Descriptor.attribute_id);
-                break;
-            }
         }
         return true;
     }
-    
+
     virtual bool OnSetConfirmation(RequestToken Token, const SetResponse& Response)
     {
-        Base()->GetDebug()->TRACE("Set Confirmation for Token %d...\n", Token);
+        EPRI::Base()->GetDebug()->TRACE("Set Confirmation for Token %d...\n", Token);
         if (Response.ResultValid)
         {
-            Base()->GetDebug()->TRACE("\tResponse Code %d...\n", 
+            EPRI::Base()->GetDebug()->TRACE("\tResponse Code %d...\n",
                 Response.Result);
         }
         return true;
@@ -276,380 +181,251 @@ public:
 
     virtual bool OnActionConfirmation(RequestToken Token, const ActionResponse& Response)
     {
-        Base()->GetDebug()->TRACE("Action Confirmation for Token %d...\n", Token);
+        EPRI::Base()->GetDebug()->TRACE("Action Confirmation for Token %d...\n", Token);
         if (Response.ResultValid)
         {
-            Base()->GetDebug()->TRACE("\tResponse Code %d...\n", 
+            EPRI::Base()->GetDebug()->TRACE("\tResponse Code %d...\n",
                 Response.Result);
         }
         return true;
     }
-    
+
     virtual bool OnReleaseConfirmation()
     {
-        Base()->GetDebug()->TRACE("Release Confirmation from Server\n");
-        return true;
-    }
-    
-    virtual bool OnReleaseConfirmation(COSEMAddressType ServerAddress)
-    {
-        Base()->GetDebug()->TRACE("Release Confirmation from Server %d\n", ServerAddress);
+        EPRI::Base()->GetDebug()->TRACE("Release Confirmation from Server\n");
         return true;
     }
 
-    virtual bool OnAbortIndication(COSEMAddressType ServerAddress)
+    virtual bool OnReleaseConfirmation(EPRI::COSEMAddressType ServerAddress)
     {
-        if (INVALID_ADDRESS == ServerAddress)
+        EPRI::Base()->GetDebug()->TRACE("Release Confirmation from Server %d\n", ServerAddress);
+        return true;
+    }
+
+    virtual bool OnAbortIndication(EPRI::COSEMAddressType ServerAddress)
+    {
+        if (EPRI::INVALID_ADDRESS == ServerAddress)
         {
-            Base()->GetDebug()->TRACE("Abort Indication.  Not Associated.\n");
+            EPRI::Base()->GetDebug()->TRACE("Abort Indication.  Not Associated.\n");
         }
         else
         {
-            Base()->GetDebug()->TRACE("Abort Indication from Server %d\n", ServerAddress);
+            EPRI::Base()->GetDebug()->TRACE("Abort Indication from Server %d\n", ServerAddress);
         }
         return true;
     }
-
+private:
+    EPRI::Transport * pXPort{nullptr};
 };
 
-class ClientApp : public AppBase
-{
+
+class HESsim {
 public:
-    ClientApp(LinuxBaseLibrary& BL)
-        : AppBase(BL)
+    HESsim(const std::string& meterURL, int SourceAddress = 1)
+        : m_pClientEngine{EPRI::COSEMClientEngine::Options(SourceAddress),
+            new EPRI::TCPWrapper((m_pSocket = EPRI::Base()->GetCore()->GetIP()->CreateSocket(EPRI::LinuxIP::Options(EPRI::LinuxIP::Options::MODE_CLIENT, EPRI::LinuxIP::Options::VERSION6))))}
     {
-        m_Base.get_io_service().post(std::bind(&ClientApp::ClientMenu, this));
-    }
-
-protected:
-    void ClientMenu()
-    {
-        PrintLine("\nClient Menu:\n\n");
-        PrintLine("\t0 - Exit Application\n");
-        PrintLine("\tA - TCP Connect\n");
-        PrintLine("\tB - HDLC Physical Connect\n");
-        PrintLine("\tC - HDLC Identify\n");
-        PrintLine("\tD - HDLC Datalink Connect\n");
-        PrintLine("\tE - Serial Wrapper Connect\n");
-        PrintLine("\n");
-        PrintLine("\t1 - COSEM Open\n");
-        PrintLine("\t2 - COSEM Get\n");
-        PrintLine("\t3 - COSEM Set\n");
-        PrintLine("\t4 - COSEM Action\n");
-        PrintLine("\t5 - COSEM Release\n");
-        PrintLine("\n");
-        PrintLine("\tT - TCP Disconnect\n"); 
-        PrintLine("\tU - HDLC Disconnect\n");
-        PrintLine("\tV - Serial Wrapper Disconnect\n");
-        PrintLine("\nSelect: ");
-        ReadLine(std::bind(&ClientApp::ClientMenu_Handler, this, std::placeholders::_1));
-    }
-    
-    bool IdentifyResponse(const BaseCallbackParameter& Parameters)
-    {
-        const DLIdentifyResponseParameter& Response = 
-            dynamic_cast<const DLIdentifyResponseParameter&>(Parameters);
-        Base()->GetDebug()->TRACE("Identify Response (%d, %d, %d, %d)...\n",
-            Response.SuccessCode, Response.ProtocolID, Response.ProtocolVersion, 
-            Response.ProtocolRevision);
-        return true;
-    }
-    
-    bool DisconnectConfirm(const BaseCallbackParameter& Parameters)
-    {
-        const DLDisconnectConfirmOrResponse& Response = 
-            dynamic_cast<const DLDisconnectConfirmOrResponse&>(Parameters);
-        Base()->GetDebug()->TRACE("Disconnect Response from Server %d...\n",
-            Response.DestinationAddress.LogicalAddress());
-
-        Base()->GetCore()->GetSerial()->ReleaseSocket(m_pSerialSocket);
-        m_pSerialSocket = nullptr;
-        m_pSocket = nullptr;
-        PrintLine("Serial released.");
-        
-        return true;
-    }
-    
-    void ClientMenu_Handler(const std::string& RetVal) 
-    {
-        if (RetVal == "0")
+        if (EPRI::SUCCESSFUL != m_pSocket->Open(meterURL.c_str()))
         {
-            exit(0);
+            std::cout << "Failed to initiate connect to " << meterURL << "\n";
         }
-        else if (toupper(RetVal[0]) == 'A')
+    }
+    ~HESsim()
+    {
+        if (m_pSocket)
         {
-            int         SourceAddress = GetNumericInput("Client Address (Default: 1)", 1);
-            std::string TCPAddress = GetStringInput("Destination TCP Address (Default: localhost)", "localhost");
-    
-            m_pClientEngine = new LinuxClientEngine(COSEMClientEngine::Options(SourceAddress), 
-                new TCPWrapper((m_pSocket = Base()->GetCore()->GetIP()->CreateSocket(LinuxIP::Options(LinuxIP::Options::MODE_CLIENT, LinuxIP::Options::VERSION4)))));
-            if (SUCCESSFUL != m_pSocket->Open(TCPAddress.c_str()))
-            {
-                PrintLine("Failed to initiate connect\n");
-            }
+            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+            bl.get_io_service().poll();
+            EPRI::Base()->GetCore()->GetIP()->ReleaseSocket(m_pSocket);
+            m_pSocket = nullptr;
+            std::cout << "Socket released.\n";
         }
-        else if (toupper(RetVal[0]) == 'B')
+        else
         {
-            int         SourceAddress = GetNumericInput("Client Address (Default: 1)", 1);
-            std::string SerialPort = GetStringInput("Serial Port (Default: /tmp/ttyS11)", "/tmp/ttyS11");
-            
-            PrintLine("Initial Baud Rate Selection\n");
-            PrintLine("\t6  - 9600\n");
-            PrintLine("\t10 - 115200\n");
-            int         BaudRate = GetNumericInput("(Default: 6 - 9600)", 6);
-            //
-            // Engine
-            //
-            m_pClientEngine = new LinuxClientEngine(COSEMClientEngine::Options(SourceAddress), 
-                (m_pHDLC = new HDLCClientLLC(HDLCAddress(SourceAddress), 
-                    (m_pSerialSocket = 
-                        Base()->GetCore()->GetSerial()->CreateSocket(LinuxSerial::Options(ISerial::Options::BaudRate(BaudRate)))),
-                    HDLCOptions())));
-            //
-            // Physical
-            //
-            if (m_pSerialSocket->Open(SerialPort.c_str()) != SUCCESS)
-            {
-                PrintLine("Failed to initiate connect\n");
-            }
-            else
-            {
-                m_pSocket = m_pSerialSocket;
-            }
-        }  
-        else if (toupper(RetVal[0]) == 'C')
-        {
-            if (m_pHDLC)
-            {
-                //
-                // IDENTIFY
-                //
-                m_pHDLC->RegisterIdentifyConfirm(std::bind(&ClientApp::IdentifyResponse, 
-                    this, std::placeholders::_1));
-                m_pHDLC->IdentifyRequest(DLIdentifyRequestParameter(HDLCAddress()));
-            }
-            else
-            {
-                PrintLine("Physical Connection Not Established Yet!\n"); 
-            }
-            
+            std::cout << "TCP Not Opened!\n";
         }
-        else if (toupper(RetVal[0]) == 'D')
-        {
-            if (m_pSerialSocket && m_pHDLC && m_pSerialSocket->IsConnected())
+    }
+    bool open()
+    {
+        static constexpr int max_tries{400};
+        int tries{max_tries};
+        do {
+            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+            bl.get_io_service().poll();
+            if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsTransportConnected())
             {
-                int DestinationAddress = GetNumericInput("Destination Address (Default: 1)", 1);
-                //
-                // Datalink
-                //
-                m_pHDLC->ConnectRequest(DLConnectRequestOrIndication(HDLCAddress(DestinationAddress)));
-            }
-            else
-            {
-                PrintLine("Physical Connection Not Established Yet!\n");
-            }
-        }
-        
-        else if (toupper(RetVal[0]) == 'E')
-        {
-            int         SourceAddress = GetNumericInput("Client Address (Default: 1)", 1);
-            std::string SerialPort = GetStringInput("Serial Port (Default: /tmp/ttyS11)", "/tmp/ttyS11");
-            
-            PrintLine("Initial Baud Rate Selection\n");
-            PrintLine("\t6  - 9600\n");
-            PrintLine("\t10 - 115200\n");
-            int         BaudRate = GetNumericInput("(Default: 6 - 9600)", 6);
-            
-            m_pClientEngine = new LinuxClientEngine(COSEMClientEngine::Options(SourceAddress), 
-                    new SerialWrapper(
-                        (m_pSerialSocket = 
-                            Base()->GetCore()->GetSerial()->CreateSocket(LinuxSerial::Options(ISerial::Options::BaudRate(BaudRate))))));
-            if (m_pSerialSocket->Open(SerialPort.c_str()) != SUCCESS)
-            {
-                PrintLine("Failed to initiate connect\n"); 
-            }
-            m_pSocket = m_pSerialSocket;
-            
-        }            
-        else if (RetVal == "1")
-        {
-            if (m_pSocket && m_pSocket->IsConnected() & m_pClientEngine->IsTransportConnected()) 
-            {
-                bool                 Send = true;
-                int                  DestinationAddress = GetNumericInput("Server Address (Default: 1)", 1);
-                COSEMSecurityOptions::SecurityLevel Security = (COSEMSecurityOptions::SecurityLevel)
-                    GetNumericInput("Security Level [0 - None, 1 - Low, 2 - High] (Default: 0)", COSEMSecurityOptions::SECURITY_NONE);
-                std::string          Password;
-                COSEMSecurityOptions SecurityOptions; 
-                //
-                // Only supports LN at this time
-                //
+                bool Send = true;
+                int DestinationAddress = 1;
+                EPRI::COSEMSecurityOptions::SecurityLevel Security = EPRI::COSEMSecurityOptions::SECURITY_NONE;
+                EPRI::COSEMSecurityOptions SecurityOptions;
                 SecurityOptions.ApplicationContextName = SecurityOptions.ContextLNRNoCipher;
-                switch (Security)
-                {
-                case COSEMSecurityOptions::SECURITY_NONE: 
-                    break;
-                    
-                case COSEMSecurityOptions::SECURITY_LOW_LEVEL:
-                    SecurityOptions.MechanismName = SecurityOptions.MechanismNameLowLevelSecurity;
-                    SecurityOptions.AuthenticationValue = GetStringInput("Password", "");
-                    break;
-                    
-                case COSEMSecurityOptions::SECURITY_HIGH_LEVEL:
-                default:
-                    Send = false;
-                    PrintLine("Security Level is Not Supported at This Time");
-                    break;
-                }
-                if (Send)
-                {
-                    size_t APDUSize = GetNumericInput("APDU Size (Default: 640)", 640);
-                    m_pClientEngine->Open(DestinationAddress,
-                                          SecurityOptions, 
-                                          xDLMS::InitiateRequest(APDUSize));
-                }
+                size_t APDUSize = 640;
+                m_pClientEngine.Open(DestinationAddress,
+                                      SecurityOptions,
+                                      EPRI::xDLMS::InitiateRequest(APDUSize));
             }
             else
             {
-                PrintLine("Transport Connection Not Established Yet!\n");
+                // std::cout << "Transport Connection Not Established Yet!\n";
+                --tries;
             }
-        }
-        else if (RetVal == "2")
-        {
-            if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine->IsOpen())
-            {
-                Cosem_Attribute_Descriptor Descriptor;
-                
-                Descriptor.class_id = (ClassIDType) GetNumericInput("Class ID (Default: 1)", CLSID_IData);
-                Descriptor.attribute_id = (ObjectAttributeIdType) GetNumericInput("Attribute (Default: 2)", 2);
-                if (Descriptor.instance_id.Parse(GetStringInput("OBIS Code (Default: 0-0:96.1.0*255)", "0-0:96.1.0*255")))
-                {
-                    if (m_pClientEngine->Get(Descriptor,
-                                             &m_GetToken))
-                    {
-                        PrintLine(std::string("\tGet Request Sent: Token ") + std::to_string(m_GetToken) + "\n");
-                    }
-                }
-                else
-                {
-                    PrintLine("Malformed OBIS Code!\n");
-                }
-            }
-            else
-            {
-                PrintLine("Not Connected!\n");
-            }
-            
-        }
-        else if (RetVal == "3")
-        {
-            if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine->IsOpen())
-            {
-                Cosem_Attribute_Descriptor Descriptor; 
-                
-                Descriptor.class_id = (ClassIDType) GetNumericInput("Class ID (Default: 1)", CLSID_IData);
-                Descriptor.attribute_id = (ObjectAttributeIdType) GetNumericInput("Attribute (Default: 2)", 2);
-                if (Descriptor.instance_id.Parse(GetStringInput("OBIS Code (Default: 0-0:96.1.0*255)", "0-0:96.1.0*255")))
-                {
-                    COSEMType MyData(COSEMDataType::VISIBLE_STRING, GetStringInput("Value (Default: LINUXDATA)", "LINUXDATA#"));
-                    if (m_pClientEngine->Set(Descriptor,
-                                             MyData,
-                                             &m_SetToken))
-                    {
-                        PrintLine(std::string("\tSet Request Sent: Token ") + std::to_string(m_SetToken) + "\n");
-                    }
-                }
-                else
-                {
-                    PrintLine("Malformed OBIS Code!\n");
-                }
-            }
-            else
-            {
-                PrintLine("Not Connected!\n");
-            }
-            
-        }    
-        else if (RetVal == "4")
-        {
-            if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine->IsOpen())
-            {
-                Cosem_Method_Descriptor Descriptor;
-
-                Descriptor.class_id = (ClassIDType) GetNumericInput("Class ID (Default: 8)", CLSID_IClock);
-                Descriptor.method_id = (ObjectAttributeIdType) GetNumericInput("Method (Default: 1)", 1);
-                if (Descriptor.instance_id.Parse(GetStringInput("OBIS Code (Default: 0-0:1.0.0*255)", "0-0:1.0.0*255")))
-                {
-                    COSEMType MyData(COSEMDataType::INTEGER, GetNumericInput("Parameter (Default: 1)", 1));
-                    if (m_pClientEngine->Action(Descriptor,
-                                            DLMSOptional<DLMSVector>(MyData),
-                                            &m_ActionToken))
-                    {
-                        PrintLine(std::string("\tAction Request Sent: Token ") + std::to_string(m_ActionToken) + "\n");
-                    }
-                }
-                else
-                {
-                    PrintLine("Malformed OBIS Code!\n");
-                }
-            }
-            else
-            {
-                PrintLine("Not Connected!\n"); 
-            }
-            
-        }         
-        else if (RetVal == "5")
-        {
-            if (!m_pClientEngine->Release(xDLMS::InitiateRequest()))
-            {
-                PrintLine("Problem submitting COSEM Release!\n");
-            }
-        }
-        else if (toupper(RetVal[0]) == 'T')
-        {
-            if (m_pSocket)
-            {
-                Base()->GetCore()->GetIP()->ReleaseSocket(m_pSocket);
-                m_pSocket = nullptr;
-                PrintLine("Socket released.\n");
-            }
-            else
-            {
-                PrintLine("TCP Not Opened!\n");
-            }
-        }
-        else if (toupper(RetVal[0]) == 'U')
-        {
-            if (m_pHDLC && m_pHDLC->IsConnected())
-            {
-                m_pHDLC->RegisterDisconnectConfirm(std::bind(&ClientApp::DisconnectConfirm, 
-                    this,
-                    std::placeholders::_1));
-                m_pHDLC->DisconnectRequest(DLDisconnectRequestOrIndication());
-            }
-            else
-            {
-                PrintLine("HDLC Not Connected!\n");
-            }
-        }
-       
-        m_Base.get_io_service().post(std::bind(&ClientApp::ClientMenu, this));
+        } while (!(m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsTransportConnected()) && tries > 0);
+        return tries;
     }
-    
-    LinuxClientEngine *             m_pClientEngine = nullptr;
-    ISocket *                       m_pSocket = nullptr;
-    ISerialSocket *                 m_pSerialSocket = nullptr;
-    HDLCClientLLC *                 m_pHDLC = nullptr;
-    COSEMClientEngine::RequestToken m_GetToken;
-    COSEMClientEngine::RequestToken m_SetToken;
-    COSEMClientEngine::RequestToken m_ActionToken; 
-   
+
+    bool close()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (!m_pClientEngine.Release(EPRI::xDLMS::InitiateRequest()))
+        {
+            std::cout << "Problem submitting COSEM Release!\n";
+            return false;
+        }
+        return true;
+    }
+
+    bool serviceConnect(bool reconnect)
+    {
+        return Action(70, (reconnect ? 2 : 1), "0-0:96.3.10*255", nullptr);
+    }
+
+    bool Action(unsigned class_id, unsigned method, std::string obis, EPRI::COSEMType MyData)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsOpen())
+        {
+            EPRI::Cosem_Method_Descriptor Descriptor;
+
+            Descriptor.class_id = (EPRI::ClassIDType)class_id;
+            Descriptor.method_id = (EPRI::ObjectAttributeIdType)method;
+            if (Descriptor.instance_id.Parse(obis))
+            {
+                if (m_pClientEngine.Action(Descriptor,
+                                        EPRI::DLMSOptional<EPRI::DLMSVector>(MyData),
+                                        &m_ActionToken))
+                {
+                    PrintLine(std::string("\tAction Request Sent: Token ") + std::to_string(m_ActionToken) + "\n");
+                    return true;
+                }
+            }
+            else
+            {
+                PrintLine("Malformed OBIS Code!\n");
+            }
+        }
+        else
+        {
+            PrintLine("Not Connected!\n");
+        }
+        return false;
+    }
+
+    bool Get(unsigned class_id, unsigned attribute, std::string obis)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsOpen())
+        {
+            EPRI::Cosem_Attribute_Descriptor Descriptor;
+
+            Descriptor.class_id = (EPRI::ClassIDType)class_id;
+            Descriptor.attribute_id = (EPRI::ObjectAttributeIdType)attribute;
+            if (Descriptor.instance_id.Parse(obis))
+            {
+                if (m_pClientEngine.Get(Descriptor, &m_GetToken))
+                {
+                    PrintLine(std::string("\tGet Request Sent: Token ") + std::to_string(m_GetToken) + "\n");
+                    return true;
+                }
+            }
+            else
+            {
+                PrintLine("Malformed OBIS Code!\n");
+            }
+        }
+        else
+        {
+            PrintLine("Not Connected!\n");
+        }
+        return false;
+    }
+
+    bool Set(unsigned class_id, unsigned attribute, std::string obis, EPRI::COSEMType MyData)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsOpen())
+        {
+            EPRI::Cosem_Attribute_Descriptor Descriptor;
+
+            Descriptor.class_id = (EPRI::ClassIDType)class_id;
+            Descriptor.attribute_id = (EPRI::ObjectAttributeIdType)attribute;
+            if (Descriptor.instance_id.Parse(obis))
+            {
+                if (m_pClientEngine.Set(Descriptor, MyData, &m_SetToken))
+                {
+                    PrintLine(std::string("\tSet Request Sent: Token ") + std::to_string(m_SetToken) + "\n");
+                    return true;
+                }
+            }
+            else
+            {
+                PrintLine("Malformed OBIS Code!\n");
+            }
+        }
+        else
+        {
+            PrintLine("Not Connected!\n");
+        }
+        return false;
+    }
+    void PrintLine(const std::string& str) const {
+        std::cout << str;
+    }
+private:
+    EPRI::LinuxBaseLibrary     bl;
+    EPRI::ISocket* m_pSocket = nullptr;
+    LinuxClientEngine m_pClientEngine;
+    EPRI::COSEMClientEngine::RequestToken m_GetToken;
+    EPRI::COSEMClientEngine::RequestToken m_SetToken;
+    EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
-int main(int argc, char *argv[])
-{
-    LinuxBaseLibrary     bl;
-    ClientApp App(bl);
-    App.Run();
+
+int main(int argc, char *argv[]) {
+    std::vector<std::string> meters{};
+    int port;
+    if (argc > 1) {
+        port = std::atoi(argv[1]);
+    }
+    if (port <= 0) {
+        port = 8080;
+    }
+    for (int i=2; i < argc; ++i) {
+        meters.emplace_back(std::string{argv[i]});
+    }
+    std::cout << "Starting Head End System simulator on port " << port << '\n';
+    HESsim hes("localhost");
+    hes.open();
+    bool result = hes.serviceConnect(true);
+    result &= hes.Get(8, 2, "0-0:1.0.0*255");
+    result &= hes.Get(1, 2, "0-0:96.1.0*255");
+    result &= hes.Set(1, 2, "0-0:96.1.0*255", {EPRI::COSEMDataType::VISIBLE_STRING, std::string{"zzzZZZZZzzz!!"}});
+    result &= hes.Get(1, 2, "0-0:96.1.0*255");
+    result &= hes.Get(70, 2, "0-0:96.3.10*255");
+    result &= hes.Get(70, 3, "0-0:96.3.10*255");
+    result &= hes.Get(70, 4, "0-0:96.3.10*255");
+    result &= hes.serviceConnect(false);
+    result &= hes.Get(70, 2, "0-0:96.3.10*255");
+    result &= hes.Get(70, 3, "0-0:96.3.10*255");
+    result &= hes.Get(70, 4, "0-0:96.3.10*255");
+
+    // now do a firmware download
+    //  1. get image block size
+    result &= hes.Get(18, 2, "0-0:44.0.0*255");
+    hes.close();
+    std::cout << ( result ? "sucess!\n" : "Failed!\n");
+    std::cout << "Shut down Head End Server on port " << port << '\n';
 }
