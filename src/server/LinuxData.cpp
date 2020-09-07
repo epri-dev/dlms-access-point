@@ -86,7 +86,11 @@ namespace EPRI
         for (int Index = 0; Index < 10; ++Index)
         {
             std::stringstream ss;
-            for (auto n{1u << Index}; n; --n) {
+            /*
+             * scale each item from 4 copies (2^2)
+             * up to 2048 copies (2^11)
+             */
+            for (auto n{4u << Index}; n; --n) {
                 ss << "LINUXDATA" << Index;
             }
             m_Values[Index] = ss.str();
