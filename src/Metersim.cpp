@@ -68,14 +68,7 @@
 // FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// 
-
-#include <iostream>
-#include <unistd.h>
-#include <iomanip>
-#include <asio.hpp>
-#include <algorithm>
-#include <string>
+//
 
 #include "LinuxBaseLibrary.h"
 #include "LinuxCOSEMServer.h"
@@ -86,14 +79,17 @@
 #include "tcpwrapper/TCPWrapper.h"
 #include "dlms-access-pointConfig.h"
 
-using namespace std;
-using namespace EPRI;
-using namespace asio;
+#include <iostream>
+#include <unistd.h>
+#include <iomanip>
+#include <asio.hpp>
+#include <algorithm>
+#include <string>
 
 class ServerApp
 {
 public:
-    ServerApp(LinuxBaseLibrary& BL) : 
+    ServerApp(EPRI::LinuxBaseLibrary& BL) :
         m_Base(BL)
     {
         m_Base.get_io_service().post(std::bind(&ServerApp::Server_Handler, this));
@@ -107,20 +103,22 @@ public:
 protected:
     void Server_Handler()
     {
-        ISocket *   pSocket;
+        EPRI::ISocket* pSocket{EPRI::Base()->GetCore()->GetIP()->CreateSocket(
+            EPRI::LinuxIP::Options(EPRI::LinuxIP::Options::MODE_SERVER, EPRI::LinuxIP::Options::VERSION6)
+        )};
 
         std::cout << "TCP Server Mode - Listening on Port 4059\n";
-        m_pServerEngine = new LinuxCOSEMServerEngine(COSEMServerEngine::Options(),
-            new TCPWrapper((pSocket = Base()->GetCore()->GetIP()->CreateSocket(LinuxIP::Options(LinuxIP::Options::MODE_SERVER, LinuxIP::Options::VERSION6)))));
-        if (SUCCESSFUL != pSocket->Open())
+        m_pServerEngine = new EPRI::LinuxCOSEMServerEngine(EPRI::COSEMServerEngine::Options(),
+            new EPRI::TCPWrapper(pSocket));
+        if (EPRI::SUCCESSFUL != pSocket->Open())
         {
             std::cout << "Failed to initiate listen\n";
             exit(0);
         }
     }
 
-    LinuxCOSEMServerEngine * m_pServerEngine = nullptr;
-    LinuxBaseLibrary&           m_Base;
+    EPRI::LinuxCOSEMServerEngine * m_pServerEngine = nullptr;
+    EPRI::LinuxBaseLibrary&           m_Base;
 };
 
 int main(int argc, char *argv[])
@@ -132,7 +130,7 @@ int main(int argc, char *argv[])
     std::string serialNumber{argv[1]};
     std::cout << "EPRI DLMS/COSEM meter simulator; serial number: " << serialNumber << "\n";
     while (1) {
-        LinuxBaseLibrary     bl;
+        EPRI::LinuxBaseLibrary     bl;
         ServerApp App(bl);
         App.Run();
         std::cout << "restarting\n";
