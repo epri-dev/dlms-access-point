@@ -115,8 +115,8 @@ namespace EPRI
         };
 
         COSEMAttribute<ATTR_OUTPUT_STATE, BooleanSchema, 0x08> output_state;
-        COSEMAttribute<ATTR_OUTPUT_STATE, Control_State_Schema, 0x10> control_state;
-        COSEMAttribute<ATTR_OUTPUT_STATE, Control_Mode_Schema, 0x18> control_mode;
+        COSEMAttribute<ATTR_CONTROL_STATE, Control_State_Schema, 0x10> control_state;
+        COSEMAttribute<ATTR_CONTROL_MODE, Control_Mode_Schema, 0x18> control_mode;
 
         enum Methods : ObjectAttributeIdType
         {
@@ -164,7 +164,10 @@ namespace EPRI
             const DLMSOptional<DLMSVector>& Parameters,
             DLMSVector * pReturnValue = nullptr) final;
 
-        std::string m_Values[10];
+    private:
+        bool m_connected = true;
+        uint8_t m_ControlState = CONNECTED;
+        uint8_t m_ControlMode = ATTR_CONTROL_MODE_2;
 
     };
 }
