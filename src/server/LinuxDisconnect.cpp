@@ -138,9 +138,22 @@ namespace EPRI
         const Cosem_Attribute_Descriptor& Descriptor,
         SelectiveAccess * pSelectiveAccess)
     {
-        pAttribute->SelectChoice(COSEMDataType::VISIBLE_STRING);
-        pAttribute->Append(m_Values[Descriptor.instance_id.GetValueGroup(EPRI::COSEMObjectInstanceID::VALUE_GROUP_E)]);
-        return APDUConstants::Data_Access_Result::success;
+        APDUConstants::Data_Access_Result result=APDUConstants::Data_Access_Result::object_unavailable;
+        switch (pAttribute->AttributeID) {
+            case ATTR_OUTPUT_STATE:
+                pAttribute->Append(m_connected);
+                result = APDUConstants::Data_Access_Result::success;
+                break;
+            case ATTR_CONTROL_STATE: 
+                pAttribute->Append(m_ControlState);
+                result = APDUConstants::Data_Access_Result::success;
+                break;
+            case ATTR_CONTROL_MODE:
+                pAttribute->Append(m_ControlMode);
+                result = APDUConstants::Data_Access_Result::success;
+                break;
+        }
+        return result;
     }
 
     APDUConstants::Data_Access_Result LinuxDisconnect::InternalSet(const AssociationContext& Context,
@@ -149,29 +162,26 @@ namespace EPRI
         const DLMSVector& Data,
         SelectiveAccess * pSelectiveAccess)
     {
-        APDUConstants::Data_Access_Result RetVal = APDUConstants::Data_Access_Result::temporary_failure;
-        try
-        {
-            DLMSValue Value;
-
-            RetVal = ICOSEMObject::InternalSet(Context, pAttribute, Descriptor, Data, pSelectiveAccess);
-            if (APDUConstants::Data_Access_Result::success == RetVal &&
+        APDUConstants::Data_Access_Result result = APDUConstants::Data_Access_Result::temporary_failure;
+        switch (pAttribute->AttributeID) {
+            case ATTR_OUTPUT_STATE:
+            case ATTR_CONTROL_STATE:
+                result = APDUConstants::Data_Access_Result::read_write_denied;
+                break;
+            case ATTR_CONTROL_MODE:
+                {
+                DLMSValue Value;
+                auto RetVal = ICOSEMObject::InternalSet(Context, pAttribute, Descriptor, Data, pSelectiveAccess);
+                if (APDUConstants::Data_Access_Result::success == RetVal &&
                 pAttribute->GetNextValue(&Value) == COSEMType::GetNextResult::VALUE_RETRIEVED)
-            {
-                m_Values[Descriptor.instance_id.GetValueGroup(EPRI::COSEMObjectInstanceID::VALUE_GROUP_E)] =
-                    DLMSValueGet<std::string>(Value);
-                RetVal = APDUConstants::Data_Access_Result::success;
-            }
-            else
-            {
-                RetVal = APDUConstants::Data_Access_Result::type_unmatched;
-            }
+                {
+                    // m_ControlMode = Value.unchecked_get();
+                    result = APDUConstants::Data_Access_Result::success;
+                }
+                }
+                break;
         }
-        catch (...)
-        {
-            RetVal = APDUConstants::Data_Access_Result::type_unmatched;
-        }
-        return RetVal;
+        return result;
     }
 
     APDUConstants::Action_Result LinuxDisconnect::InternalAction(const AssociationContext& Context,
@@ -185,11 +195,28 @@ namespace EPRI
         {
         case METHOD_REMOTE_DISCONNECT:
             std::cout << "Disconnect ACTION Received" << std::endl;
+            if (m_ControlMode != ATTR_CONTROL_MODE_0) {
+                m_connected = false;
+            }
             result = APDUConstants::Action_Result::success;
             break;
         case METHOD_REMOTE_RECONNECT:
             std::cout << "Reconnect ACTION Received" << std::endl;
-            result = APDUConstants::Action_Result::success;
+            switch (m_ControlMode) {
+                case ATTR_CONTROL_MODE_1:
+                case ATTR_CONTROL_MODE_3:
+                case ATTR_CONTROL_MODE_5:
+                case ATTR_CONTROL_MODE_6:
+                    m_ControlState = READY_FOR_RECONNECTION;
+                    result = APDUConstants::Action_Result::success;
+                    break;
+                case ATTR_CONTROL_MODE_2:
+                case ATTR_CONTROL_MODE_4:
+                    m_ControlState = CONNECTED;
+                    m_connected = true;
+                    result = APDUConstants::Action_Result::success;
+                    break;
+            }
             break;
         default:
             std::cout << "Unknown Disconnect ACTION Received" << std::endl;
