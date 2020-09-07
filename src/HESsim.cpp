@@ -393,21 +393,9 @@ private:
     EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
-
-int main(int argc, char *argv[]) {
-    std::vector<std::string> meters{};
-    int port;
-    if (argc > 1) {
-        port = std::atoi(argv[1]);
-    }
-    if (port <= 0) {
-        port = 8080;
-    }
-    for (int i=2; i < argc; ++i) {
-        meters.emplace_back(std::string{argv[i]});
-    }
-    std::cout << "Starting Head End System simulator on port " << port << '\n';
-    HESsim hes("localhost");
+bool runScript(const std::string& metername)
+{
+    HESsim hes(metername);
     hes.open();
     bool result = hes.serviceConnect(true);
     result &= hes.Get(8, 2, "0-0:1.0.0*255");
@@ -426,6 +414,15 @@ int main(int argc, char *argv[]) {
     //  1. get image block size
     result &= hes.Get(18, 2, "0-0:44.0.0*255");
     hes.close();
-    std::cout << ( result ? "sucess!\n" : "Failed!\n");
-    std::cout << "Shut down Head End Server on port " << port << '\n';
+    return result;
+}
+
+int main(int argc, char *argv[]) {
+    std::vector<std::string> meters{};
+    for (int i=1; i < argc; ++i) {
+        meters.emplace_back(std::string{argv[i]});
+    }
+    for (const auto &m: meters) {
+        std::cout << "Processing " << m << "\n" << ( runScript(m) ? "sucess!\n" : "Failed!\n");
+    }
 }
