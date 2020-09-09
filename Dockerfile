@@ -22,13 +22,13 @@ RUN mkdir ./build && \
     make pdf
 
 FROM nginx:alpine AS docserver
-COPY --from=builder /tmp/dlms-access-point/build/doc/html/ /usr/share/nginx/html
-COPY --from=builder /tmp/dlms-access-point/build/doc/latex/refman.pdf /usr/share/nginx/html/dlms-access-point.pdf
+COPY --from=builder /tmp/build/doc/html/ /usr/share/nginx/html
+COPY --from=builder /tmp/build/doc/latex/refman.pdf /usr/share/nginx/html/dlms-access-point.pdf
 COPY src/docker/default.conf /etc/nginx/conf.d/default.conf
 
 FROM fedora:32 AS demo
 RUN dnf update -y
 WORKDIR /tmp/
-COPY --from=builder /tmp/dlms-access-point/build/src/DLMS_sim .
-COPY --from=builder /tmp/dlms-access-point/build/src/HESsim .
-COPY --from=builder /tmp/dlms-access-point/build/src/Metersim .
+COPY --from=builder /tmp/build/src/DLMS_sim .
+COPY --from=builder /tmp/build/src/HESsim .
+COPY --from=builder /tmp/build/src/Metersim .
