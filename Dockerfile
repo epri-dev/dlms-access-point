@@ -14,6 +14,7 @@ RUN dnf update -y \
         texlive-newunicodechar texlive-etoc
 
 WORKDIR /tmp/
+COPY . .
 RUN mkdir ./build && \
     cd ./build && \
     cmake -Wno-dev .. && \
