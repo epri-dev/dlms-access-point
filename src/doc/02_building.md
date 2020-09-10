@@ -9,38 +9,17 @@ Docker provides a lightweight alternative to a full virtual machine.  One can cr
 The following steps assume that you already have Docker running on a Linux machine of some kind.  See the [Docker "getting started"](https://docs.docker.com/get-started/) pages for how to do that.  It also assumes that you have `docker-compose` available, configured and running.  The same pages will be helpful with that as well.
 
 ### Build the software ###
-The simplest way to build the software within a `Docker` container is to use start with a compressed archive of the entire source software project in an otherwise empty directory.  This file will be named `dlms-cim-1.0.0-Source.tar.gz` with the `1.0.0` referring to the 1.0.0 version of the software.  Later versions will have different version numbers, of course.  
+The simplest way to build the software within a `Docker` container is to start with the `build.sh` file. In fact, if you wish to run but not modify the software, it suffices to download only two files: the `build.sh` file and the `docker-compose.yml` file.  With only those two files, one can build the software on a Linux machine by first running `build.sh` which builds two container images, and then running `docker-compose up` to run them.
 
-The next step is to execute the following command:
+To run the `build.sh` file, you need a good connection to the internet.  The `build.sh` file executes two separate `docker` commands which will download a base Docker image and install all required tools (to the image, and not to your host computer).  This may take many minutes depending on the speed of your internet connection and computer.  Eventually the build process will be complete and two images will be created named `beroset/dlms-access-point` and `beroset/dlms-access-point-docs`.  
 
-    tar -xvzf dlms-cim-1.0.0-Source.tar.gz --strip=3 dlms-cim-1.0.0-Source/src/docker
+At this point the images are created on your hard drive and an internet connection is not longer necessary.  Running `docker-compose up` at this point will cause Docker to run four containers.  The last few lines of that should look something like this:
 
-This extracts some files from within the archive to the same directory.  Next is to make sure that you have a good connection to the internet and then execute:
-
-    docker-compose up --build
-
-This will download a base Docker image and install all required tools (to the image, and not to your host computer).  This may take many minutes depending on the speed of your internet connection and computer.  Eventually the build process will be complete and Docker will run five containers.  The last few lines of that should look something like this:
-
-    Successfully tagged docker_dlms-cim-cis:latest
-    Creating docker_dlms-cim-hes_1    ... done
-    Creating docker_dlms-cim-meter1_1 ... done
-    Creating docker_dlms-cim-docs_1   ... done
-    Creating docker_dlms-cim-cis_1    ... done
-    Creating docker_dlms-cim-meter2_1 ... done
+    Creating docker_dlms-access-point-hes_1    ... done
+    Creating docker_dlms-access-point-meter1_1 ... done
+    Creating docker_dlms-access-point-docs_1   ... done
+    Creating docker_dlms-access-point-meter2_1 ... done
         
-
-### Alternative approach
-One can also perform the build and run steps separately with `docker-compose`.  The effect is the same, but instead of this:
-
-    docker-compose up --build
-
-It's possible to separate those into two distinct steps:
-
-    docker-compose build
-    docker-compose up
-
-The advantage is that if the container images have already been built, `docker-compose up` is faster than running `docker-compose up --build`.
-
 ## Further reading
 
 [How to use the software](@ref using)
