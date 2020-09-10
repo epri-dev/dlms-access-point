@@ -1,0 +1,55 @@
+version: "2.4"
+services:
+    dlms-access-point-meter1:
+        image: beroset/dlms-access-point
+        entrypoint: 
+            - /tmp/Metersim 
+            - "M1001"
+        expose:
+            - "4059/tcp"
+        networks:
+            - meternet
+        sysctls:
+            net.ipv6.conf.all.disable_ipv6: 0
+
+
+    dlms-access-point-meter2:
+        image: beroset/dlms-access-point
+        entrypoint: 
+            - /tmp/Metersim 
+            - "M1002"
+        expose:
+            - "4059/tcp"
+        networks:
+            - meternet
+        sysctls:
+            net.ipv6.conf.all.disable_ipv6: 0
+
+    dlms-access-point-hes:
+        image: beroset/dlms-access-point
+        entrypoint: 
+            - /tmp/HESsim
+            - dlms-access-point-meter1
+            - dlms-access-point-meter2
+        networks:
+            - meternet
+        sysctls:
+            net.ipv6.conf.all.disable_ipv6: 0
+
+    dlms-access-point-docs:
+        image: beroset/dlms-access-point-docs
+        ports:
+                - "8080:80"
+        networks:
+            - docnet
+
+networks:
+    docnet:
+    meternet:
+        enable_ipv6: true
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: 2001:3200:3200::/64
+
