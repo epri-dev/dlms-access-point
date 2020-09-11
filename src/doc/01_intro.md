@@ -35,6 +35,9 @@ With that said, however, it's probable that a system operator will want the abil
 ## Mode 3
 A Mode 3 Access Point implements a hybrid of the Mode 1 and Mode 2 functions.  That is, such a device includes a DLMS communications protocol implementation, but also provides lower layer routing which is, as described in Mode 1, a lower layer function which does not need or use DLMS or any other application layer protocol.  Such devices provide all of the benefits of both Mode 1 and Mode 2 devices, but also incur all of the costs, including operational and design complexity, added requirements of security token storage.  However, it has the potential ability to both provide a performance advantage in daily use (e.g. performing daily reads of all meters) but also provide a benefit when other things are required.
 
+## Dashboard
+Here is the [dashboard](dashboard/dashboard.html).
+
 **TODO: chop the rest, but I want to remember the old docs and their structure.**
 
 Every system that uses both DLMS/COSEM for the meters and CIM for the enterprise interface must necessarily implement a mapping from one to the other. While this has been described in [IEC TS 62056-6-9](https://webstore.iec.ch/publication/24736), this work is to show a concrete example of how this mapping might be accomplished and to document some of the ambiguities and difficulties encountered along the way.
