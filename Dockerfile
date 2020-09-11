@@ -22,7 +22,7 @@ RUN mkdir ./build && \
 
 WORKDIR /tmp/build/doc/html/
 RUN git clone https://github.com/Freeboard/freeboard.git dashboard
-RUN cp /tmp/package.json dashboard/package.json
+RUN cp /tmp/dashboard/package.json dashboard/package.json
 RUN cd dashboard && npm install; npm install grunt-cli underscore
 
 FROM nginx:alpine AS docserver
