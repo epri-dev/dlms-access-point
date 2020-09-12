@@ -56,4 +56,5 @@ if(DOXYGEN_FOUND)
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
         COMMENT "Generating drawings using graphviz..." 
     )
+
 endif(DOXYGEN_FOUND)

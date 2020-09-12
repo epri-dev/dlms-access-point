@@ -35,5 +35,7 @@ target_link_libraries(DLMS_sim server core DLMS-COSEM Threads::Threads)
 target_link_libraries(Metersim server core DLMS-COSEM Threads::Threads)
 target_link_libraries(HESsim core DLMS-COSEM Threads::Threads)
 
+add_dependencies(shared_container Metersim HESsim pdf)
+
 ## install things
 INSTALL(TARGETS Metersim HESsim DESTINATION bin)

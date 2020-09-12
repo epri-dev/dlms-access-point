@@ -10,8 +10,10 @@ services:
             - "4059/tcp"
         networks:
             - meternet
+        volumes:
+            - ./src:/tmp:ro
         sysctls:
-          net.ipv6.conf.all.disable_ipv6: 0
+            net.ipv6.conf.all.disable_ipv6: 0
 
     access-point:
         build:
@@ -24,8 +26,10 @@ services:
         networks:
             - meternet
             - hesnet
+        volumes:
+            - ./src:/tmp:ro
         sysctls:
-          net.ipv6.conf.all.disable_ipv6: 0
+            net.ipv6.conf.all.disable_ipv6: 0
 
     hes:
         build:
@@ -38,8 +42,10 @@ services:
             - dlms-access-point-meter3
         networks:
             - hesnet
+        volumes:
+            - ./src:/tmp:ro
         sysctls:
-          net.ipv6.conf.all.disable_ipv6: 0
+            net.ipv6.conf.all.disable_ipv6: 0
 
     docs:
         build:
@@ -50,13 +56,17 @@ services:
         networks:
             - docnet
         volumes:
-            - ./doc/html:/usr/share/nginx/html:z
+            - ./doc/html:/usr/share/nginx/html:ro
 
 networks:
     docnet:
     hesnet:
         enable_ipv6: true
         driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: 2001:3200:3201::/64
     meternet:
         enable_ipv6: true
         driver: bridge

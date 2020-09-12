@@ -17,6 +17,12 @@ configure_file (
   "${PROJECT_BINARY_DIR}/dlms-access-pointConfig.h"
   )
 
+configure_file (
+  "${PROJECT_SOURCE_DIR}/dashboard/package.json"
+  "${PROJECT_BINARY_DIR}/doc/html/package.json"
+  COPYONLY
+  )
+
 # add the binary tree to the search path for include files
 # so that we will find dlms-access-pointConfig.h
 include_directories("${PROJECT_BINARY_DIR}")

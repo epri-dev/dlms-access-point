@@ -18,3 +18,12 @@ configure_file (
   "${CMAKE_CURRENT_LIST_DIR}/default.conf"
   "${PROJECT_BINARY_DIR}/doc/html/default.conf"
 )
+
+add_custom_target(
+    shared_container
+    "docker-compose"
+    "build"
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    COMMENT "Creating container with shared volume..." VERBATIM
+)
+
