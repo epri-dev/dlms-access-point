@@ -40,10 +40,12 @@ This tool provides a reference implementation of an Access Point that serves as 
 
 In its default operating mode, the software will create three simulated meters, a simulated HES and a simulated Access Point.  The interaction among the software pieces is entirely automated and periodic.  Every ten seconds, the HES sends some kind of request to the Access Point simulator.  The Access Point simulator, in turn, passes this message to the simulated meters according to the current operating Mode as described above. 
 
+The `dashboard` provides a way to control the devices of the simulated network and can be accessed as `http://localhost:8081/`.
+
+The `docserver` provides a convenient means of viewing all of the documentation and can be accessed as `http://localhost:8080/`.
+
 @image html blocks.svg "Block Diagram"
 @image latex blocks.pdf "Block Diagram"
-
-Here is the [dashboard](dashboard/dashboard.html).
 
 
 ## Further reading

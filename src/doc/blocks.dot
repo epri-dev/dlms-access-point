@@ -18,4 +18,9 @@ graph blocks {
     meter2 -- HES [label="meternet"];
     meter3 -- HES [label="meternet"];
     AP -- HES [label="backhaul"];
+    dashboard -- HES [style="dotted"];
+    dashboard -- AP [style="dotted"];
+    dashboard -- meter1 [style="dotted"];
+    dashboard -- meter2 [style="dotted"];
+    dashboard -- meter3 [style="dotted"];
 }
