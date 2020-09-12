@@ -4,15 +4,18 @@ graph blocks {
         label = "simulated network";
         subgraph cluster_meters {
             label = "meters";
-            {rank=same meter1 meter2}
+            {rank=same meter1 meter2 meter3}
             meter1;
             meter2;
+            meter3;
         }
+        AP [label="access point"];
         HES;
-        CIS;
+        dashboard;
     }
     docserver;
-    meter1 -- HES [label="meternet\n(DLMS)"];
-    meter2 -- HES [label="meternet\n(DLMS)"];
-    HES -- CIS [label="hesnet\n(CIM)"];
+    meter1 -- HES [label="meternet"];
+    meter2 -- HES [label="meternet"];
+    meter3 -- HES [label="meternet"];
+    AP -- HES [label="backhaul"];
 }
