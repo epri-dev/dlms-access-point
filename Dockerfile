@@ -25,6 +25,10 @@ RUN git clone https://github.com/Freeboard/freeboard.git dashboard
 RUN cp /tmp/dashboard/package.json dashboard/package.json
 RUN cd dashboard && npm install; npm install grunt-cli underscore
 
+FROM nginx:alpine AS dashboard
+COPY --from=builder /tmp/build/doc/html/dashboard /usr/share/nginx/html
+COPY src/docker/default.conf /etc/nginx/conf.d/default.conf
+
 FROM nginx:alpine AS docserver
 COPY --from=builder /tmp/build/doc/html/ /usr/share/nginx/html
 COPY --from=builder /tmp/build/doc/latex/refman.pdf /usr/share/nginx/html/dlms-access-point.pdf

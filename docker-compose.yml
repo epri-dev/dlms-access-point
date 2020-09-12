@@ -23,6 +23,15 @@ services:
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
 
+    dashboard:
+        image: beroset/dlms-access-point-dashboard
+        ports:
+            - "8081:80"
+        networks:
+            - meternet
+        sysctls:
+            net.ipv6.conf.all.disable_ipv6: 0
+
     docs:
         image: beroset/dlms-access-point-docs
         ports:
