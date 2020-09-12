@@ -4,7 +4,6 @@ services:
         image: beroset/dlms-access-point
         entrypoint: 
             - /tmp/Metersim 
-            - "M1001"
         expose:
             - "4059/tcp"
         networks:

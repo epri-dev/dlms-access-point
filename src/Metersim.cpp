@@ -121,14 +121,9 @@ protected:
     EPRI::LinuxBaseLibrary&           m_Base;
 };
 
-int main(int argc, char *argv[])
+int main()
 {
-    if (argc != 2) {
-        std::cerr << "Usage: MeterSim serialnumberstring\n";
-        return 1;
-    }
-    std::string serialNumber{argv[1]};
-    std::cout << "EPRI DLMS/COSEM meter simulator; serial number: " << serialNumber << "\n";
+    std::cout << "EPRI DLMS/COSEM meter simulator\n";
     while (1) {
         EPRI::LinuxBaseLibrary     bl;
         ServerApp App(bl);
