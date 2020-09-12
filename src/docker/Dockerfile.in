@@ -1,3 +1,4 @@
 FROM fedora:32 AS demo
-RUN dnf update -y
+RUN dnf update -y \
+    && dnf install -y iputils iproute nmap-ncat
 WORKDIR /tmp/

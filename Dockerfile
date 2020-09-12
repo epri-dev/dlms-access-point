@@ -32,7 +32,7 @@ COPY src/docker/default.conf /etc/nginx/conf.d/default.conf
 
 FROM fedora:32 AS demo
 RUN dnf update -y \
-    && dnf install -y iputils iproute 
+    && dnf install -y iputils iproute nmap-ncat
 WORKDIR /tmp/
 COPY --from=builder /tmp/build/src/DLMS_sim .
 COPY --from=builder /tmp/build/src/HESsim .

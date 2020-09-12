@@ -1,2 +1,15 @@
+FROM fedora:32 as builder
+
+LABEL maintainer="Ed Beroset <beroset@ieee.org>"
+
+RUN dnf update -y \
+        && dnf install -y git npm
+
+WORKDIR /tmp/build/doc/html/
+RUN git clone https://github.com/Freeboard/freeboard.git dashboard
+RUN cp /tmp/dashboard/package.json dashboard/package.json
+RUN cd dashboard && npm install; npm install grunt-cli underscore
+
 FROM nginx:alpine AS docserver
+COPY --from=builder /tmp/build/doc/html/dashboard/ /usr/share/nginx/html/dashboard
 COPY default.conf /etc/nginx/conf.d/default.conf

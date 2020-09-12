@@ -25,6 +25,11 @@ RUN mv $projectsourcename dlms-access-point && \
     make && \
     make pdf
 
+WORKDIR /tmp/dlms-access-point/build/doc/html/
+RUN git clone https://github.com/Freeboard/freeboard.git dashboard
+RUN cp /tmp/dlms-access-point/dashboard/package.json dashboard/package.json
+RUN cd dashboard && npm install; npm install grunt-cli underscore
+
 FROM nginx:alpine AS docserver
 COPY --from=builder /tmp/dlms-access-point/build/doc/html/ /usr/share/nginx/html
 COPY --from=builder /tmp/dlms-access-point/build/doc/latex/refman.pdf /usr/share/nginx/html/dlms-access-point.pdf
