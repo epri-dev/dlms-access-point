@@ -1,35 +1,22 @@
 version: "2.4"
 services:
-    meter:
-        build:
-            context: src
-            target: demo
-        entrypoint: 
-            - /tmp/Metersim 
-        expose:
-            - "4059/tcp"
-        networks:
-            - meternet
-        volumes:
-            - ./src:/tmp:ro
-        sysctls:
-            net.ipv6.conf.all.disable_ipv6: 0
-
     access-point:
         build:
             context: src
             target: demo
         entrypoint: 
-            - /bin/bash
+            - /tmp/Metersim
+            - 2001:3200:3201::100:100 
         expose:
             - "4059/tcp"
         networks:
             - meternet
-            - hesnet
+            - backhaul
         volumes:
-            - ./src:/tmp:ro
+            - ./src:/tmp:z
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
+            net.ipv6.conf.all.forwarding: 1
 
     hes:
         build:
@@ -37,13 +24,40 @@ services:
             target: demo
         entrypoint: 
             - /tmp/HESsim
-            - dlms-access-point-meter1
-            - dlms-access-point-meter2
-            - dlms-access-point-meter3
+            - 2001:3200:3200::2
+            - 2001:3200:3200::3
+            - 2001:3200:3200::5
         networks:
-            - hesnet
+            backhaul:
+              ipv6_address: 2001:3200:3201::100:100
         volumes:
-            - ./src:/tmp:ro
+            - ./src:/tmp:z
+        sysctls:
+            net.ipv6.conf.all.disable_ipv6: 0
+
+    meter:
+        build:
+            context: src
+            target: demo
+        entrypoint: 
+            - /tmp/Metersim 
+            - 2001:3200:3201::100:100 
+        expose:
+            - "4059/tcp"
+        networks:
+            - meternet
+        volumes:
+            - ./src:/tmp:z
+        sysctls:
+            net.ipv6.conf.all.disable_ipv6: 0
+
+    dashboard:
+        image: beroset/dlms-access-point-dashboard
+        ports:
+            - "8081:80"
+        networks:
+            - meternet
+            - backhaul
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
 
@@ -56,11 +70,11 @@ services:
         networks:
             - docnet
         volumes:
-            - ./doc/html:/usr/share/nginx/html:ro
+            - ./doc/html:/usr/share/nginx/html:z
 
 networks:
     docnet:
-    hesnet:
+    backhaul:
         enable_ipv6: true
         driver: bridge
         ipam:
