@@ -85,6 +85,8 @@
 #include <asio.hpp>
 #include <algorithm>
 #include <string>
+#include <chrono>
+#include <thread>
 
 class ServerApp
 {
@@ -98,6 +100,16 @@ public:
     virtual void Run()
     {
         m_Base.Process();
+    }
+
+    virtual bool Register(const char *HESaddress) {
+        static const std::string RegRequest{"R"};
+        asio::ip::tcp::socket s(m_Base.get_io_service());
+        asio::ip::tcp::resolver::query q(HESaddress, "4059");
+        asio::ip::tcp::resolver resolver(m_Base.get_io_service());
+        asio::connect(s, resolver.resolve(q));
+        asio::write(s, asio::buffer(RegRequest.data(), RegRequest.size()));
+        return true;
     }
 
 protected:
@@ -121,13 +133,24 @@ protected:
     EPRI::LinuxBaseLibrary&           m_Base;
 };
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc != 2) {
+        std::cerr << "Usage: Metersim HESaddress\n";
+        return 1;
+    }
     std::cout << "EPRI DLMS/COSEM meter simulator\n";
+    bool reg = false;
     while (1) {
         EPRI::LinuxBaseLibrary     bl;
         ServerApp App(bl);
-        App.Run();
+        // register with head end system
+        if (reg) {
+            App.Run();
+        } else {
+            reg = App.Register(argv[1]);
+            std::cout << "Registered with " << argv[1] << "\n";
+        }
         std::cout << "restarting\n";
     }
 }

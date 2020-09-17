@@ -91,6 +91,7 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <memory>
 
 class LinuxClientEngine : public EPRI::COSEMClientEngine
 {
@@ -417,12 +418,67 @@ bool runScript(const std::string& metername)
     return result;
 }
 
-int main(int argc, char *argv[]) {
-    std::vector<std::string> meters{};
-    for (int i=1; i < argc; ++i) {
-        meters.emplace_back(std::string{argv[i]});
+std::vector<std::string> meters{};
+
+using asio::ip::tcp;
+
+class tcp_connection : public std::enable_shared_from_this<tcp_connection>
+{
+public:
+    tcp_connection(tcp::socket socket) 
+        : socket_(std::move(socket))
+    {}
+
+    void start() {
+        std::string remote{socket_.remote_endpoint().address().to_string()};
+        std::cout << "Registered " << remote << '\n';
+        meters.emplace_back(remote);
     }
-    for (const auto &m: meters) {
-        std::cout << "Processing " << m << "\n" << ( runScript(m) ? "sucess!\n" : "Failed!\n");
+
+private:
+    tcp::socket socket_;
+};
+
+class RegistrationServer {
+public:
+    RegistrationServer(asio::io_service& io_service)
+        : socket_(io_service)
+        , acceptor_(io_service, tcp::endpoint(tcp::v6(), 4059))
+    {
+        std::cout << "Listening on port 4059\n";
+        do_accept();
+    }
+private:
+    void do_accept() {
+        acceptor_.async_accept(socket_,
+            [this](std::error_code ec) {
+                if (!ec) {
+                    std::make_shared<tcp_connection>(std::move(socket_))->start();
+                }
+                do_accept();
+            });
+    }
+
+    tcp::socket socket_;
+    tcp::acceptor acceptor_;
+};
+
+void regs() {
+    try {
+        asio::io_service io_service;
+        RegistrationServer regServer(io_service);
+        io_service.run();
+    } catch (std::exception& err) {
+        std::cerr << err.what() << '\n';
+    }
+}
+int main() {
+    auto thr{std::thread(regs)};
+    while (1) {
+        std::cout << "There are " << meters.size() << " registered meters\n";
+        for (const auto &m: meters) {
+            std::cout << "Processing " << m << "\n" << ( runScript(m) ? "sucess!\n" : "Failed!\n");
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }
 }
