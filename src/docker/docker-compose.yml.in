@@ -24,9 +24,8 @@ services:
             target: demo
         entrypoint: 
             - /tmp/HESsim
-            - 2001:3200:3200::2
-            - 2001:3200:3200::3
-            - 2001:3200:3200::5
+        expose:
+            - "4059/tcp"
         networks:
             backhaul:
               ipv6_address: 2001:3200:3201::100:100

@@ -1,9 +1,24 @@
 version: "2.4"
 services:
+    access-point:
+        image: beroset/dlms-access-point
+        entrypoint: 
+            - /tmp/Metersim
+            - 2001:3200:3201::100:100 
+        expose:
+            - "4059/tcp"
+        networks:
+            - meternet
+            - backhaul
+        sysctls:
+            net.ipv6.conf.all.disable_ipv6: 0
+            net.ipv6.conf.all.forwarding: 1
+
     meter:
         image: beroset/dlms-access-point
         entrypoint: 
             - /tmp/Metersim 
+            - 2001:3200:3201::100:100 
         expose:
             - "4059/tcp"
         networks:
@@ -15,11 +30,11 @@ services:
         image: beroset/dlms-access-point
         entrypoint: 
             - /tmp/HESsim
-            - dlms-access-point_meter_1
-            - dlms-access-point_meter_2
-            - dlms-access-point_meter_3
+        expose:
+            - "4059/tcp"
         networks:
-            - meternet
+            backhaul:
+              ipv6_address: 2001:3200:3201::100:100
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
 
@@ -41,6 +56,13 @@ services:
 
 networks:
     docnet:
+    backhaul:
+        enable_ipv6: true
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: 2001:3200:3201::/64
     meternet:
         enable_ipv6: true
         driver: bridge
