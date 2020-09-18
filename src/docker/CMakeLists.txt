@@ -15,7 +15,7 @@ configure_file (
 )
 
 configure_file (
-  "${CMAKE_CURRENT_LIST_DIR}/default.conf"
+  "${CMAKE_CURRENT_LIST_DIR}/docserver/default.conf"
   "${PROJECT_BINARY_DIR}/doc/html/default.conf"
 )
 
