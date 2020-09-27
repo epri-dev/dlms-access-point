@@ -15,6 +15,7 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/core/ ${CMAKE_CURRENT_LIST_DIR}/se
 # Create the libraries
 add_subdirectory(core)
 add_subdirectory(server)
+add_subdirectory(websocket)
 
 # Create the documentation 
 add_subdirectory(doc)
