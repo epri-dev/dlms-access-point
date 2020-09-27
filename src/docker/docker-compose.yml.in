@@ -14,6 +14,8 @@ services:
             - backhaul
         volumes:
             - ./src:/tmp:z
+        cap_add:
+            - NET_ADMIN
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
             net.ipv6.conf.all.forwarding: 1
@@ -26,6 +28,7 @@ services:
             - /tmp/HESsim
         expose:
             - "4059/tcp"
+            - "4060/tcp"
         networks:
             backhaul:
               ipv6_address: 2001:3200:3201::100:100
@@ -47,6 +50,8 @@ services:
             - meternet
         volumes:
             - ./src:/tmp:z
+        cap_add:
+            - NET_ADMIN
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
 
