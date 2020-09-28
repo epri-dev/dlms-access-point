@@ -7,39 +7,50 @@
 #include <iostream>
 namespace pt = boost::property_tree;
 
-std::istream& operator>>(std::istream& in, HESConfig::payload pl) {
-    std::string word;
-    in >> word;
-    if (word == "medium") {
-        pl = HESConfig::payload::medium;
-    } else if (word == "large") {
-        pl = HESConfig::payload::large;
-    }
-    pl = HESConfig::payload::small;
-    return in;
-}
+namespace boost {
+namespace property_tree {
 
-std::ostream& operator<<(std::ostream& out, const HESConfig::payload& pl) {
-    if (pl == HESConfig::payload::medium) {
-        return out << "medium";
-    } else if (pl == HESConfig::payload::large) {
-        return out << "large";
+template<>
+struct translator_between<std::string, HESConfig::payload>
+{
+  struct type {
+    typedef std::string internal_type;
+    typedef HESConfig::payload external_type;
+    boost::optional<external_type> get_value(const internal_type& str) {
+        if (str == "medium") {
+            return HESConfig::payload::medium;
+        } else if (str == "large") {
+            return HESConfig::payload::large;
+        }
+        return HESConfig::payload::small;
     }
-    return out << "small";
-}
+    boost::optional<internal_type> put_value(const external_type& obj) {
+        using namespace std::string_literals;
+        if (obj == HESConfig::payload::medium) {
+            return "medium"s;
+        } else if (obj == HESConfig::payload::large) {
+            return "large"s;
+        }
+        return "small"s;
+    }
+  };
+};
+
+} // namespace property_tree
+} // namespace boost
 
 void HESConfig::load(const std::string& filename) {
     pt::ptree tree;
     pt::read_json(filename, tree);
-    tree.get<payload>("hes.payload_size"); 
-    tree.get<bool>("hes.route_only"); 
+    payload_size = tree.get<payload>("hes.payload_size"); 
+    route_only = tree.get<bool>("hes.route_only"); 
 }
 
 void HESConfig::load(std::istream& json) {
     pt::ptree tree;
     pt::read_json(json, tree);
-    tree.get<payload>("hes.payload_size"); 
-    tree.get<bool>("hes.route_only"); 
+    payload_size = tree.get<payload>("hes.payload_size"); 
+    route_only = tree.get<bool>("hes.route_only"); 
 }
 
 void HESConfig::save(const std::string& filename) const {
@@ -58,5 +69,12 @@ void HESConfig::save(std::ostream& json) const {
 
 int main() {
     HESConfig hescfg;
-    hescfg.save("hes.json");
+    hescfg.load("hes.json");
+#if 0
+    std::cout 
+        << "payload = " << hescfg.payload_size 
+        << "\nroute_only = " << std::boolalpha << hescfg.route_only
+        << "\n";
+#endif
+    hescfg.save("smoo.json");
 }

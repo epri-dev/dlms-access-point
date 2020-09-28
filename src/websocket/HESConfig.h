@@ -5,7 +5,7 @@
 
 class HESConfig {
 public:
-    enum class payload { small, medium, large} payload_size = payload::small;
+    enum class payload { small, medium, large } payload_size = payload::small;
     bool route_only = true;
 
     void load(const std::string &filename);
