@@ -35,11 +35,25 @@ void HESConfig::load(const std::string& filename) {
     tree.get<bool>("hes.route_only"); 
 }
 
+void HESConfig::load(std::istream& json) {
+    pt::ptree tree;
+    pt::read_json(json, tree);
+    tree.get<payload>("hes.payload_size"); 
+    tree.get<bool>("hes.route_only"); 
+}
+
 void HESConfig::save(const std::string& filename) const {
     pt::ptree tree;
     tree.put("hes.payload_size", payload_size);
     tree.put("hes.route_only", route_only); 
     pt::write_json(filename, tree);
+}
+
+void HESConfig::save(std::ostream& json) const {
+    pt::ptree tree;
+    tree.put("hes.payload_size", payload_size);
+    tree.put("hes.route_only", route_only); 
+    pt::write_json(json, tree);
 }
 
 int main() {
