@@ -14,9 +14,9 @@ graph blocks {
         dashboard;
     }
     docserver;
-    meter1 -- HES [label="meternet"];
-    meter2 -- HES [label="meternet"];
-    meter3 -- HES [label="meternet"];
+    meter1 -- AP [label="meternet"];
+    meter2 -- AP [label="meternet"];
+    meter3 -- AP [label="meternet"];
     AP -- HES [label="backhaul"];
     dashboard -- HES [style="dotted"];
     dashboard -- AP [style="dotted"];
