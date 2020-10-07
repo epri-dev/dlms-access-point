@@ -78,6 +78,7 @@
 #include "serialwrapper/SerialWrapper.h"
 #include "tcpwrapper/TCPWrapper.h"
 #include "dlms-access-pointConfig.h"
+#include "HESConfig.h"
 
 #include <iostream>
 #include <cstdio>
@@ -394,13 +395,24 @@ private:
     EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
-bool runScript(const std::string& metername)
+bool runScript(const std::string& metername, const HESConfig& cfg)
 {
     HESsim hes(metername);
     hes.open();
     bool result = hes.serviceConnect(true);
     result &= hes.Get(8, 2, "0-0:1.0.0*255");
-    result &= hes.Get(1, 2, "0-0:96.1.0*255");
+    switch (cfg.get_payload_size()) {
+        case HESConfig::payload::medium:
+            result &= hes.Get(1, 2, "0-0:96.1.4*255");
+            break;
+        case HESConfig::payload::large:
+            result &= hes.Get(1, 2, "0-0:96.1.9*255");
+            break;
+        default:
+            result &= hes.Get(1, 2, "0-0:96.1.0*255");
+            break;
+    }
+#if 0
     result &= hes.Set(1, 2, "0-0:96.1.0*255", {EPRI::COSEMDataType::VISIBLE_STRING, std::string{"zzzZZZZZzzz!!"}});
     result &= hes.Get(1, 2, "0-0:96.1.0*255");
     result &= hes.Get(70, 2, "0-0:96.3.10*255");
@@ -414,6 +426,7 @@ bool runScript(const std::string& metername)
     // now do a firmware download
     //  1. get image block size
     result &= hes.Get(18, 2, "0-0:44.0.0*255");
+#endif
     hes.close();
     return result;
 }
@@ -474,10 +487,11 @@ void regs() {
 }
 int main() {
     auto thr{std::thread(regs)};
+    HESConfig cfg;
     while (1) {
         std::cout << "There are " << meters.size() << " registered meters\n";
         for (const auto &m: meters) {
-            std::cout << "Processing " << m << "\n" << ( runScript(m) ? "sucess!\n" : "Failed!\n");
+            std::cout << "Processing " << m << "\n" << ( runScript(m, cfg) ? "sucess!\n" : "Failed!\n");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }

@@ -10,7 +10,7 @@ find_package(Threads REQUIRED)
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_HAS_STD_CHRONO)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR}/core/ ${CMAKE_CURRENT_LIST_DIR}/server ${DLMS_LIBRARY_BASE_DIR}/lib/DLMS-COSEM/include/ ${ASIO_INCLUDE_DIR})
+include_directories(core server websocket ${DLMS_LIBRARY_BASE_DIR}/lib/DLMS-COSEM/include/ ${ASIO_INCLUDE_DIR})
 
 # Create the libraries
 add_subdirectory(core)
@@ -34,7 +34,7 @@ add_executable(HESsim HESsim.cpp)
 ## and the various required libraries
 target_link_libraries(DLMS_sim server core DLMS-COSEM Threads::Threads)
 target_link_libraries(Metersim server core DLMS-COSEM Threads::Threads)
-target_link_libraries(HESsim core DLMS-COSEM Threads::Threads)
+target_link_libraries(HESsim core HESConfig DLMS-COSEM Threads::Threads)
 
 add_dependencies(shared_container Metersim HESsim pdf)
 

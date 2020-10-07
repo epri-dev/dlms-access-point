@@ -28,7 +28,8 @@ services:
             - /tmp/HESsim
         expose:
             - "4059/tcp"
-            - "4060/tcp"
+        ports:
+            - "4060:4060"
         networks:
             backhaul:
               ipv6_address: 2001:3200:3201::100:100
