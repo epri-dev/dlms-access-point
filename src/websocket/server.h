@@ -70,197 +70,54 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 //
-
-#include "server.h"
+#ifndef SERVER_H
+#define SERVER_H
 #include "HESConfig.h"
-
-#include <algorithm>
-#include <cstdlib>
-#include <functional>
-#include <iostream>
-#include <string>
-#include <thread>
-#include <vector>
-
-using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
-namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
+#include <boost/beast/core.hpp>
+#include <boost/beast/websocket.hpp>
+#include <boost/asio/bind_executor.hpp>
+#include <boost/asio/strand.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <memory>
 
 //------------------------------------------------------------------------------
 
-// Report a failure
-static void fail(boost::system::error_code ec, char const* what) {
-    std::cerr << what << ": " << ec.message() << "\n";
-}
+// Echoes back all received WebSocket messages
+class session : public std::enable_shared_from_this<session> {
+    boost::beast::websocket::stream<boost::asio::ip::tcp::socket> ws;
+    boost::asio::strand<boost::asio::io_context::executor_type> strand;
+    boost::beast::multi_buffer buffer;
+    HESConfig& cfg;
 
-// Take ownership of the socket
-session::session(tcp::socket socket, HESConfig& cfg)
-    : ws(std::move(socket))
-    , strand(ws.get_executor())
-    , cfg(cfg)
-{ }
+public:
+    // Take ownership of the socket
+    explicit session(boost::asio::ip::tcp::socket socket, HESConfig& cfg);
 
-// Start the asynchronous operation
-void session::run() {
-    // Accept the websocket handshake
-    ws.async_accept(
-        boost::asio::bind_executor(
-            strand,
-            std::bind(
-                &session::on_accept,
-                shared_from_this(),
-                std::placeholders::_1
-            )
-        )
-    );
-}
-
-void session::on_accept(boost::system::error_code ec) {
-    if (ec) {
-        fail(ec, "accept");
-        return;
-    }
-
-    // Read a message
-    do_read();
-}
-
-void session::do_read() {
-    // Read a message into our buffer
-    ws.async_read(
-        buffer,
-        boost::asio::bind_executor(
-            strand,
-            std::bind(
-                &session::on_read,
-                shared_from_this(),
-                std::placeholders::_1,
-                std::placeholders::_2
-            )
-        )
-    );
-}
-
-void session::on_read(boost::system::error_code ec, std::size_t bytes_transferred) {
-    boost::ignore_unused(bytes_transferred);
-
-    if (ec == websocket::error::closed) {
-        return;
-    }
-
-    if (ec) {
-        fail(ec, "read");
-    }
-
-    // Echo the message
-    ws.text(ws.got_text());
-    std::cout << "Got MSG: " << boost::beast::buffers(buffer.data()) << "\n";
-    cfg.load_from_string(boost::beast::buffers_to_string(buffer.data()));
-    ws.async_write(
-        buffer.data(),
-        boost::asio::bind_executor(
-            strand,
-            std::bind(
-                &session::on_write,
-                shared_from_this(),
-                std::placeholders::_1,
-                std::placeholders::_2
-            )
-        )
-    );
-}
-
-void session::on_write(boost::system::error_code ec, std::size_t bytes_transferred) {
-    boost::ignore_unused(bytes_transferred);
-
-    if (ec) {
-        fail(ec, "write");
-        return;
-    }
-
-    // Clear the buffer
-    buffer.consume(buffer.size());
-
-    // Do another read
-    do_read();
-}
-
+    // Start the asynchronous operation
+    void run();
+    void on_accept(boost::system::error_code ec);
+    void do_read();
+    void on_read(boost::system::error_code ec, std::size_t bytes_transferred);
+    void on_write(boost::system::error_code ec, std::size_t bytes_transferred);
+};
 
 //------------------------------------------------------------------------------
 
 // Accepts incoming connections and launches the sessions
-listener::listener(
-    HESConfig& cfg,
-    boost::asio::io_context& ioc,
-    tcp::endpoint endpoint)
-    : cfg(cfg)
-    , acceptor(ioc)
-    , sock(ioc)
-{
-    boost::system::error_code ec;
+class listener : public std::enable_shared_from_this<listener> {
+    HESConfig& cfg;
+    boost::asio::ip::tcp::acceptor acceptor;
+    boost::asio::ip::tcp::socket sock;
 
-    // Open the acceptor
-    acceptor.open(endpoint.protocol(), ec);
-    if (ec) {
-        fail(ec, "open");
-        return;
-    }
+public:
+    listener(HESConfig& cfg, boost::asio::io_context& ioc, boost::asio::ip::tcp::endpoint endpoint);
 
-    // Allow address reuse
-    acceptor.set_option(boost::asio::socket_base::reuse_address(true), ec);
-    if (ec) {
-        fail(ec, "set_option");
-        return;
-    }
+    // Start accepting incoming connections
+    void run();
+    void do_accept();
+    void on_accept(boost::system::error_code ec);
+};
 
-    // Bind to the server address
-    acceptor.bind(endpoint, ec);
-    if (ec) {
-        fail(ec, "bind");
-        return;
-    }
+void server(unsigned short port, HESConfig& cfg);
 
-    // Start listening for connections
-    acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
-    if (ec) {
-        fail(ec, "listen");
-        return;
-    }
-}
-
-// Start accepting incoming connections
-void listener::run() {
-    if (! acceptor.is_open()) {
-        return;
-    }
-    do_accept();
-}
-
-void listener::do_accept() {
-    acceptor.async_accept(
-        sock,
-        std::bind(
-            &listener::on_accept,
-            shared_from_this(),
-            std::placeholders::_1
-        )
-    );
-}
-
-void listener::on_accept(boost::system::error_code ec) {
-    if (ec) {
-        fail(ec, "accept");
-    } else {
-        // Create the session and run it
-        std::make_shared<session>(std::move(sock), cfg)->run();
-    }
-
-    // Accept another connection
-    do_accept();
-}
-
-void server(unsigned short port, HESConfig& cfg) {
-    boost::asio::io_context ioc;
-    std::make_shared<listener>(cfg, ioc, tcp::endpoint{boost::asio::ip::tcp::v6(), port})->run();
-    ioc.run();
-}
-
+#endif // SERVER_H
