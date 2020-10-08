@@ -6,7 +6,7 @@ LABEL maintainer="Ed Beroset <beroset@ieee.org>"
 # Only the first line is needed to build the software.  All packages starting
 # with doxygen are only needed to generate the documentation.
 RUN dnf update -y \
-        && dnf install -y gcc gcc-c++ make git cmake unzip \
+        && dnf install -y gcc gcc-c++ make git cmake unzip boost-static \
         doxygen graphviz texlive-latex texlive-linegoal texlive-multirow \
         texlive-hanging texlive-adjustbox texlive-stackengine texlive-listofitems \
         texlive-ulem texlive-wasysym texlive-collection-fontsrecommended \
