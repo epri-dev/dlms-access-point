@@ -68,7 +68,7 @@ void HESConfig::load_from_string(std::string str) {
     try {
         load(ss);
     } catch(const boost::property_tree::ptree_error &e) {
-        std::err << "Error parsing json string: " << e.what() << '\n';
+        std::cerr << "Error parsing json string: " << e.what() << '\n';
     }
 }
 
