@@ -6,9 +6,12 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(Threads REQUIRED)
 
 ## finally some executables
+add_executable(taskrunner taskrunner.cpp) 
 add_library(HESConfig HESConfig.cpp server.cpp)
 if(Boost_FOUND) 
     target_include_directories(HESConfig PRIVATE ${Boost_INCLUDE_DIRS})
     target_link_libraries(HESConfig PRIVATE Boost::system ${CMAKE_THREAD_LIBS_INIT})
+    target_include_directories(taskrunner PRIVATE ${Boost_INCLUDE_DIRS})
+    target_link_libraries(taskrunner PRIVATE Boost::system ${CMAKE_THREAD_LIBS_INIT})
 endif(Boost_FOUND)
 
