@@ -29,14 +29,16 @@ set(DLMS_SERVER_COMMON_SOURCES LinuxCOSEMServer.cpp LinuxClock.cpp LinuxData.cpp
 ## finally some executables
 add_executable(DLMS_sim Linux.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
 add_executable(Metersim Metersim.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
+add_executable(APsim APsim.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
 add_executable(HESsim HESsim.cpp)
 
 ## and the various required libraries
 target_link_libraries(DLMS_sim server core DLMS-COSEM Threads::Threads)
 target_link_libraries(Metersim server core DLMS-COSEM Threads::Threads)
+target_link_libraries(APsim server core DLMS-COSEM Threads::Threads)
 target_link_libraries(HESsim core HESConfig DLMS-COSEM Threads::Threads)
 
-add_dependencies(shared_container Metersim HESsim pdf)
+add_dependencies(shared_container Metersim APsim HESsim pdf)
 
 ## install things
-INSTALL(TARGETS Metersim HESsim DESTINATION bin)
+INSTALL(TARGETS Metersim APsim HESsim DESTINATION bin)
