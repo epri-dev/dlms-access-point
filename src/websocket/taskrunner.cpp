@@ -103,6 +103,21 @@ std::string fetchNetStats() {
     return ss.str();
 }
 
+std::string invokeNetem() {
+    using namespace boost::process;
+    ipstream pipe_stream;
+    child c("tc qdisc add dev eth0 root netem corrupt 25% 50%", std_out > pipe_stream);
+
+    std::string line;
+    std::stringstream ss;
+
+    while (pipe_stream && std::getline(pipe_stream, line) && !line.empty())
+        ss << line << '\n';
+
+    c.wait();
+    return ss.str();
+}
+
 // Report a failure
 static void fail(boost::system::error_code ec, char const* what) {
     std::cerr << what << ": " << ec.message() << "\n";
@@ -284,8 +299,20 @@ void server(unsigned short port) {
     ioc.run();
 }
 
-int main() {
+void usage() {
+    std::cerr << "Usage: taskrunner portnum\n";
+}
+
+int main(int argc, char *argv[]) {
+    std::string portnum{argv[1]};
+    unsigned short port{8888};
+    try {
+        port = std::stoi(portnum);
+    } catch(std::invalid_argument err) {
+        usage();
+        return 1;
+    }
     std::cout << fetchNetStats() << '\n';
     // just camp here, waiting for network connections
-    server(8888);
+    server(port);
 }
