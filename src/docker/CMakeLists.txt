@@ -19,6 +19,12 @@ configure_file (
   "${PROJECT_BINARY_DIR}/doc/html/default.conf"
 )
 
+configure_file (
+  "${CMAKE_CURRENT_LIST_DIR}/demo/docker-entrypoint.sh"
+  "${PROJECT_BINARY_DIR}/src/docker-entrypoint.sh"
+  COPYONLY
+)
+
 add_custom_target(
     shared_container
     "docker-compose"

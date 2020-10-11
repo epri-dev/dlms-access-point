@@ -43,10 +43,14 @@ services:
             context: src
             target: demo
         entrypoint: 
-            - /tmp/Metersim 
+            - /tmp/docker-entrypoint.sh
             - 2001:3200:3201::100:100 
+            - "8888"
         expose:
             - "4059/tcp"
+        ports:
+            # this port is used to get network stats and control tc qdisc netem
+            - "8888:8888"
         networks:
             - meternet
         volumes:

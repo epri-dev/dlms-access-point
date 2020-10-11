@@ -15,3 +15,5 @@ if(Boost_FOUND)
     target_link_libraries(taskrunner PRIVATE Boost::system ${CMAKE_THREAD_LIBS_INIT})
 endif(Boost_FOUND)
 
+## install things
+INSTALL(TARGETS taskrunner DESTINATION bin)
