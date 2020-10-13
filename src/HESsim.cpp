@@ -417,10 +417,10 @@ bool multiRead(const std::string& apaddress, const std::vector<std::string>& met
         return std::move(a) + ',' + b;
     };
     std::string meterset = std::accumulate(meters.begin()+1, meters.end(), payload_str, comma_concat);
+    // read previous result from data object 2
+    result &= hes.Get(1, 2, "0-0:96.1.2*255");
     // write to data object 1
     bool result = hes.Set(1, 2, "0-0:96.1.1*255", {EPRI::COSEMDataType::VISIBLE_STRING, meterset});
-    // read result from data object 2
-    result &= hes.Get(1, 2, "0-0:96.1.2*255");
     hes.close();
     return result;
 }
