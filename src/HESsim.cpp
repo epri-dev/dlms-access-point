@@ -93,6 +93,7 @@
 #include <chrono>
 #include <thread>
 #include <memory>
+#include <numeric>
 
 class LinuxClientEngine : public EPRI::COSEMClientEngine
 {
@@ -395,6 +396,35 @@ private:
     EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
+bool multiRead(const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg)
+{
+    HESsim hes(apaddress);
+    hes.open();
+    std::string payload_str{};
+    switch (cfg.get_payload_size()) {
+        case HESConfig::payload::medium:
+            payload_str = "medium";
+            break;
+        case HESConfig::payload::large:
+            payload_str = "large";
+            break;
+        default:
+            payload_str = "small";
+            break;
+    }
+    // concatenate all meter names
+    auto comma_concat = [](std::string a, std::string b) {
+        return std::move(a) + ',' + b;
+    };
+    std::string meterset = std::accumulate(meters.begin()+1, meters.end(), payload_str, comma_concat);
+    // write to data object 1
+    bool result = hes.Set(1, 2, "0-0:96.1.1*255", {EPRI::COSEMDataType::VISIBLE_STRING, meterset});
+    // read result from data object 2
+    result &= hes.Get(1, 2, "0-0:96.1.2*255");
+    hes.close();
+    return result;
+}
+
 bool runScript(const std::string& metername, const HESConfig& cfg)
 {
     HESsim hes(metername);
@@ -485,13 +515,22 @@ void regs() {
         std::cerr << err.what() << '\n';
     }
 }
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        std::cerr << "Usage: HESsim APaddress\n";
+        return 1;
+    }
+    std::string APaddress{argv[1]};
     auto thr{std::thread(regs)};
     HESConfig cfg;
     while (1) {
         std::cout << "There are " << meters.size() << " registered meters\n";
-        for (const auto &m: meters) {
-            std::cout << "Processing " << m << "\n" << ( runScript(m, cfg) ? "sucess!\n" : "Failed!\n");
+        if (cfg.get_route_only()) {
+            std::cout << "Multiread\n" << ( multiRead(APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
+        } else {
+            for (const auto &m: meters) {
+                std::cout << "Processing " << m << "\n" << ( runScript(m, cfg) ? "sucess!\n" : "Failed!\n");
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }
