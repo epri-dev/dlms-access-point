@@ -11,7 +11,7 @@ There are three fundamental ways in which such an access point operates:
  3. as a hybrid device performing both functions
 
 # Purpose 
-This tool is both a demonstration of all three kinds of access point, but also serves as an experimental platform.  Using this code, interested persons can quickly and easily set up a small network, modify paramters and then observe the results.
+This tool is both a demonstration of all three kinds of access point, but also serves as an experimental platform.  Using this code, interested persons can quickly and easily set up a small network, modify parameters and then observe the results.
 
 # Access point modes
 As mentioned earlier, there are three fundamental ways in which such an access point operates:
