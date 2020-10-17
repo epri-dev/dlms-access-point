@@ -98,6 +98,7 @@ namespace EPRI
     
     void LinuxDebug::TRACE_BUFFER(const char * Marker, const uint8_t * Buffer, size_t BufferSize, uint8_t BytesPerLine /*= 16*/)
     {
+#if 0
         TRACE("\n%s: ", Marker);
         const uint8_t * p = Buffer;
         while (p != (Buffer + BufferSize))
@@ -109,11 +110,12 @@ namespace EPRI
             }
         }
         TRACE("\n");
+#endif
     }
     
     void LinuxDebug::TRACE_VECTOR(const char * Marker, const DLMSVector& Data, uint8_t BytesPerLine /*= 16*/)
     {
-        TRACE_BUFFER(Marker, Data.GetData(), Data.Size(), BytesPerLine);
+        //TRACE_BUFFER(Marker, Data.GetData(), Data.Size(), BytesPerLine);
     }
 
     

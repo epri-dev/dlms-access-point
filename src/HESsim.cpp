@@ -398,8 +398,6 @@ private:
 
 bool multiRead(const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg)
 {
-    HESsim hes(apaddress);
-    hes.open();
     std::string payload_str{};
     switch (cfg.get_payload_size()) {
         case HESConfig::payload::medium:
@@ -417,16 +415,20 @@ bool multiRead(const std::string& apaddress, const std::vector<std::string>& met
         return std::move(a) + ',' + b;
     };
     std::string meterset = std::accumulate(meters.begin()+1, meters.end(), payload_str, comma_concat);
-    // read previous result from data object 2
-    result &= hes.Get(1, 2, "0-0:96.1.2*255");
-    // write to data object 1
-    bool result = hes.Set(1, 2, "0-0:96.1.1*255", {EPRI::COSEMDataType::VISIBLE_STRING, meterset});
-    hes.close();
-    return result;
+    std::cout << "about to read from " << apaddress << '\n';
+
+    asio::ip::tcp::socket s(m_Base.get_io_service());
+    asio::ip::tcp::resolver::query q(apaddress, "4059");
+    asio::ip::tcp::resolver resolver(m_Base.get_io_service());
+    asio::connect(s, resolver.resolve(q));
+    asio::write(s, asio::buffer(meterset.data(), meterset.size()));
+
+    return true;
 }
 
 bool runScript(const std::string& metername, const HESConfig& cfg)
 {
+    std::cout << "Trying to connect to meter at " << metername << "\n";
     HESsim hes(metername);
     hes.open();
     bool result = hes.serviceConnect(true);
@@ -526,12 +528,12 @@ int main(int argc, char *argv[]) {
     while (1) {
         std::cout << "There are " << meters.size() << " registered meters\n";
         if (cfg.get_route_only()) {
-            std::cout << "Multiread\n" << ( multiRead(APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
-        } else {
             for (const auto &m: meters) {
                 std::cout << "Processing " << m << "\n" << ( runScript(m, cfg) ? "sucess!\n" : "Failed!\n");
             }
+        } else {
+            std::cout << "Multiread\n" << ( multiRead(APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }
-}
+} 

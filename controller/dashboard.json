@@ -1,0 +1,137 @@
+{
+	"version": 1,
+	"header_image": "https://s3.amazonaws.com/skipsolabs-epri/froala/uploadedContent/uploads/transparent-EPRI-logo.png",
+	"allow_edit": true,
+	"plugins": [],
+	"panes": [
+		{
+			"title": "HES configuration",
+			"width": 1,
+			"row": {
+				"3": 1,
+				"4": 1
+			},
+			"col": {
+				"3": 1,
+				"4": 1
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "html",
+					"settings": {
+						"html": "<script>\n    const HESsocket = new WebSocket('ws://localhost:4060');\nfunction sendConfig() {\n    var payloadlength = document.querySelector('[name=payloadlength]:checked').value;\n    var routeonly = document.querySelector('[name=routeonly]').checked;\n    var json = `{\"hes\":{\"payload_size\":\"${payloadlength}\",\"route_only\":\"${routeonly}\"}}`;\n    HESsocket.send(json);\n    return true;\n}\n</script>\n<style>\n.button {\n    margin: 15px 32px;\n}\n</style>\n<form id=\"netcontrol\" action=\"javascript:void(0);\" onsubmit=\"sendConfig()\">\n  <p>&nbsp;Read data length:</p>\n  <input type=\"radio\" id=\"short\" name=\"payloadlength\" value=\"short\" checked=\"checked\">\n  <label for=\"short\">short</label><br>\n  <input type=\"radio\" id=\"medium\" name=\"payloadlength\" value=\"medium\">\n  <label for=\"medium\">medium</label><br>\n  <input type=\"radio\" id=\"long\" name=\"payloadlength\" value=\"long\">\n  <label for=\"long\">long</label>\n  <p>&nbsp;Route only</p>\n  <input type=\"checkbox\" id=\"routeonly\" name=\"routeonly\" checked=\"checked\">\n  <button type=\"submit\" class=\"button\">Set configuration</button>\n</form>\n",
+						"height": 4
+					}
+				}
+			]
+		},
+		{
+			"title": "Backhaul network",
+			"width": 1,
+			"row": {
+				"3": 1,
+				"4": 11
+			},
+			"col": {
+				"3": 2,
+				"4": 2
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets received",
+						"size": "regular",
+						"value": "31003",
+						"sparkline": false,
+						"animate": true,
+						"units": "packets"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets sent",
+						"size": "regular",
+						"value": "33451",
+						"animate": true,
+						"units": "packets"
+					}
+				}
+			]
+		},
+		{
+			"title": "System status",
+			"width": 1,
+			"row": {
+				"3": 1,
+				"4": 11
+			},
+			"col": {
+				"3": 3,
+				"4": 3
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Number of meters",
+						"size": "regular",
+						"value": "3",
+						"animate": true,
+						"units": "meters"
+					}
+				}
+			]
+		},
+		{
+			"title": "Field Area Network",
+			"width": 1,
+			"row": {
+				"3": 11,
+				"4": 11
+			},
+			"col": {
+				"3": 1,
+				"4": 1
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets received",
+						"size": "regular",
+						"value": "93044",
+						"animate": true,
+						"units": "packets"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets sent",
+						"size": "regular",
+						"value": "99525",
+						"animate": true,
+						"units": "packets"
+					}
+				}
+			]
+		}
+	],
+	"datasources": [
+		{
+			"name": "seconds",
+			"type": "clock",
+			"settings": {
+				"refresh": 1,
+				"name": "seconds"
+			}
+		}
+	],
+	"columns": 3
+}

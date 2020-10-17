@@ -5,13 +5,19 @@ services:
             context: src
             target: demo
         entrypoint: 
-            - /tmp/Metersim
+            - /tmp/docker-entrypoint.sh
+            - "access-point"
             - 2001:3200:3201::100:100 
+            - "8888"
         expose:
             - "4059/tcp"
+        ports:
+            # this port is used to get network stats and control tc qdisc netem
+            - "8888:8888"
         networks:
-            - meternet
-            - backhaul
+            meternet:
+            backhaul:
+              ipv6_address: 2001:3200:3201::100:101
         volumes:
             - ./src:/tmp:z
         cap_add:
@@ -26,6 +32,7 @@ services:
             target: demo
         entrypoint: 
             - /tmp/HESsim
+            - 2001:3200:3201::100:101
         expose:
             - "4059/tcp"
         ports:
@@ -44,13 +51,11 @@ services:
             target: demo
         entrypoint: 
             - /tmp/docker-entrypoint.sh
+            - "meter"
             - 2001:3200:3201::100:100 
             - "8888"
         expose:
             - "4059/tcp"
-        ports:
-            # this port is used to get network stats and control tc qdisc netem
-            - "8888:8888"
         networks:
             - meternet
         volumes:

@@ -119,7 +119,7 @@ protected:
             EPRI::LinuxIP::Options(EPRI::LinuxIP::Options::MODE_SERVER, EPRI::LinuxIP::Options::VERSION6)
         )};
 
-        std::cout << "TCP Server Mode - Listening on Port 4059\n";
+        std::cout << "Meter Listening on Port 4059\n";
         m_pServerEngine = new EPRI::LinuxCOSEMServerEngine(EPRI::COSEMServerEngine::Options(),
             new EPRI::TCPWrapper(pSocket));
         if (EPRI::SUCCESSFUL != pSocket->Open())
@@ -151,6 +151,5 @@ int main(int argc, char *argv[])
             reg = App.Register(argv[1]);
             std::cout << "Registered with " << argv[1] << "\n";
         }
-        std::cout << "restarting\n";
     }
 }

@@ -80,6 +80,10 @@
 #include "dlms-access-pointConfig.h"
 
 #include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <time.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <iomanip>
 #include <asio.hpp>
@@ -87,70 +91,458 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <memory>
+#include <numeric>
 
-class ServerApp
+class LinuxClientEngine : public EPRI::COSEMClientEngine
 {
 public:
-    ServerApp(EPRI::LinuxBaseLibrary& BL) :
-        m_Base(BL)
+    LinuxClientEngine() = delete;
+    LinuxClientEngine(const Options& Opt, EPRI::Transport * pXPort) :
+        pXPort(pXPort),
+        COSEMClientEngine(Opt, pXPort)
     {
-        m_Base.get_io_service().post(std::bind(&ServerApp::Server_Handler, this));
+    }
+    virtual ~LinuxClientEngine()
+    {
+        delete pXPort;
     }
 
-    virtual void Run()
+    virtual bool OnOpenConfirmation(EPRI::COSEMAddressType ServerAddress)
     {
-        m_Base.Process();
-    }
-
-    virtual bool Register(const char *HESaddress) {
-        static const std::string RegRequest{"R"};
-        asio::ip::tcp::socket s(m_Base.get_io_service());
-        asio::ip::tcp::resolver::query q(HESaddress, "4059");
-        asio::ip::tcp::resolver resolver(m_Base.get_io_service());
-        asio::connect(s, resolver.resolve(q));
-        asio::write(s, asio::buffer(RegRequest.data(), RegRequest.size()));
+        EPRI::Base()->GetDebug()->TRACE("Associated with Server %d...\n",
+            ServerAddress);
         return true;
     }
 
-protected:
-    void Server_Handler()
+    virtual bool OnGetConfirmation(RequestToken Token, const GetResponse& Response)
     {
-        EPRI::ISocket* pSocket{EPRI::Base()->GetCore()->GetIP()->CreateSocket(
-            EPRI::LinuxIP::Options(EPRI::LinuxIP::Options::MODE_SERVER, EPRI::LinuxIP::Options::VERSION6)
-        )};
-
-        std::cout << "TCP Server Mode - Listening on Port 4059\n";
-        m_pServerEngine = new EPRI::LinuxCOSEMServerEngine(EPRI::COSEMServerEngine::Options(),
-            new EPRI::TCPWrapper(pSocket));
-        if (EPRI::SUCCESSFUL != pSocket->Open())
+        EPRI::Base()->GetDebug()->TRACE("Get Confirmation for Token %d...\n", Token);
+        if (Response.ResultValid && Response.Result.which() == EPRI::Get_Data_Result_Choice::data_access_result)
         {
-            std::cout << "Failed to initiate listen\n";
-            exit(0);
+            EPRI::Base()->GetDebug()->TRACE("\tReturned Error Code %d...\n",
+                Response.Result.get<EPRI::APDUConstants::Data_Access_Result>());
+            return false;
         }
+
+        switch(Response.Descriptor.class_id) {
+            case EPRI::CLSID_IData:
+                {
+                    EPRI::IData     SerialNumbers;
+                    EPRI::DLMSValue Value;
+
+                    SerialNumbers.value = Response.Result.get<EPRI::DLMSVector>();
+                    if (EPRI::COSEMType::VALUE_RETRIEVED == SerialNumbers.value.GetNextValue(&Value))
+                    {
+                        EPRI::Base()->GetDebug()->TRACE("%s\n", EPRI::DLMSValueGet<EPRI::VISIBLE_STRING_CType>(Value).c_str());
+                    }
+
+                }
+                break;
+            case EPRI::CLSID_IAssociationLN:
+                {
+                    EPRI::IAssociationLN CurrentAssociation;
+                    EPRI::DLMSValue      Value;
+
+                    switch (Response.Descriptor.attribute_id)
+                    {
+                    case EPRI::IAssociationLN::ATTR_PARTNERS_ID:
+                        {
+                            CurrentAssociation.associated_partners_id = Response.Result.get<EPRI::DLMSVector>();
+                            if (EPRI::COSEMType::VALUE_RETRIEVED == CurrentAssociation.associated_partners_id.GetNextValue(&Value) &&
+                                IsSequence(Value))
+                            {
+                                EPRI::DLMSSequence& Element = DLMSValueGetSequence(Value);
+                                EPRI::Base()->GetDebug()->TRACE("ClientSAP %d; ServerSAP %d\n",
+                                    EPRI::DLMSValueGet<EPRI::INTEGER_CType>(Element[0]),
+                                    EPRI::DLMSValueGet<EPRI::LONG_UNSIGNED_CType>(Element[1]));
+                            }
+                        }
+                        break;
+
+                    default:
+                        EPRI::Base()->GetDebug()->TRACE("Attribute %d not supported for parsing.", Response.Descriptor.attribute_id);
+                        break;
+                    }
+                }
+                break;
+        }
+        return true;
     }
 
-    EPRI::LinuxCOSEMServerEngine * m_pServerEngine = nullptr;
-    EPRI::LinuxBaseLibrary&           m_Base;
+    virtual bool OnSetConfirmation(RequestToken Token, const SetResponse& Response)
+    {
+        EPRI::Base()->GetDebug()->TRACE("Set Confirmation for Token %d...\n", Token);
+        if (Response.ResultValid)
+        {
+            EPRI::Base()->GetDebug()->TRACE("\tResponse Code %d...\n",
+                Response.Result);
+        }
+        return true;
+    }
+
+    virtual bool OnActionConfirmation(RequestToken Token, const ActionResponse& Response)
+    {
+        EPRI::Base()->GetDebug()->TRACE("Action Confirmation for Token %d...\n", Token);
+        if (Response.ResultValid)
+        {
+            EPRI::Base()->GetDebug()->TRACE("\tResponse Code %d...\n",
+                Response.Result);
+        }
+        return true;
+    }
+
+    virtual bool OnReleaseConfirmation()
+    {
+        EPRI::Base()->GetDebug()->TRACE("Release Confirmation from Server\n");
+        return true;
+    }
+
+    virtual bool OnReleaseConfirmation(EPRI::COSEMAddressType ServerAddress)
+    {
+        EPRI::Base()->GetDebug()->TRACE("Release Confirmation from Server %d\n", ServerAddress);
+        return true;
+    }
+
+    virtual bool OnAbortIndication(EPRI::COSEMAddressType ServerAddress)
+    {
+        if (EPRI::INVALID_ADDRESS == ServerAddress)
+        {
+            EPRI::Base()->GetDebug()->TRACE("Abort Indication.  Not Associated.\n");
+        }
+        else
+        {
+            EPRI::Base()->GetDebug()->TRACE("Abort Indication from Server %d\n", ServerAddress);
+        }
+        return true;
+    }
+private:
+    EPRI::Transport * pXPort{nullptr};
 };
 
-int main(int argc, char *argv[])
-{
-    if (argc != 2) {
-        std::cerr << "Usage: APsim HESaddress\n";
-        return 1;
-    }
-    std::cout << "EPRI DLMS/COSEM Access Point simulator\n";
-    bool reg = false;
-    while (1) {
-        EPRI::LinuxBaseLibrary     bl;
-        ServerApp App(bl);
-        // register with head end system
-        if (reg) {
-            App.Run();
-        } else {
-            reg = App.Register(argv[1]);
-            std::cout << "Registered with " << argv[1] << "\n";
+
+class HESsim {
+public:
+    HESsim(const std::string& meterURL, int SourceAddress = 1)
+        : m_pClientEngine{EPRI::COSEMClientEngine::Options(SourceAddress),
+            new EPRI::TCPWrapper((m_pSocket = EPRI::Base()->GetCore()->GetIP()->CreateSocket(EPRI::LinuxIP::Options(EPRI::LinuxIP::Options::MODE_CLIENT, EPRI::LinuxIP::Options::VERSION6))))}
+    {
+        if (EPRI::SUCCESSFUL != m_pSocket->Open(meterURL.c_str()))
+        {
+            std::cout << "Failed to initiate connect to " << meterURL << "\n";
         }
-        std::cout << "restarting\n";
+    }
+    ~HESsim()
+    {
+        if (m_pSocket)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+            bl.get_io_service().poll();
+            EPRI::Base()->GetCore()->GetIP()->ReleaseSocket(m_pSocket);
+            m_pSocket = nullptr;
+            std::cout << "Socket released.\n";
+        }
+        else
+        {
+            std::cout << "TCP Not Opened!\n";
+        }
+    }
+    bool open()
+    {
+        static constexpr int max_tries{400};
+        int tries{max_tries};
+        do {
+            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+            bl.get_io_service().poll();
+            if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsTransportConnected())
+            {
+                bool Send = true;
+                int DestinationAddress = 1;
+                EPRI::COSEMSecurityOptions::SecurityLevel Security = EPRI::COSEMSecurityOptions::SECURITY_NONE;
+                EPRI::COSEMSecurityOptions SecurityOptions;
+                SecurityOptions.ApplicationContextName = SecurityOptions.ContextLNRNoCipher;
+                size_t APDUSize = 640;
+                m_pClientEngine.Open(DestinationAddress,
+                                      SecurityOptions,
+                                      EPRI::xDLMS::InitiateRequest(APDUSize));
+            }
+            else
+            {
+                // std::cout << "Transport Connection Not Established Yet!\n";
+                --tries;
+            }
+        } while (!(m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsTransportConnected()) && tries > 0);
+        return tries;
+    }
+
+    bool close()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (!m_pClientEngine.Release(EPRI::xDLMS::InitiateRequest()))
+        {
+            std::cout << "Problem submitting COSEM Release!\n";
+            return false;
+        }
+        return true;
+    }
+
+    bool serviceConnect(bool reconnect)
+    {
+        return Action(70, (reconnect ? 2 : 1), "0-0:96.3.10*255", nullptr);
+    }
+
+    bool Action(unsigned class_id, unsigned method, std::string obis, EPRI::COSEMType MyData)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsOpen())
+        {
+            EPRI::Cosem_Method_Descriptor Descriptor;
+
+            Descriptor.class_id = (EPRI::ClassIDType)class_id;
+            Descriptor.method_id = (EPRI::ObjectAttributeIdType)method;
+            if (Descriptor.instance_id.Parse(obis))
+            {
+                if (m_pClientEngine.Action(Descriptor,
+                                        EPRI::DLMSOptional<EPRI::DLMSVector>(MyData),
+                                        &m_ActionToken))
+                {
+                    PrintLine(std::string("\tAction Request Sent: Token ") + std::to_string(m_ActionToken) + "\n");
+                    return true;
+                }
+            }
+            else
+            {
+                PrintLine("Malformed OBIS Code!\n");
+            }
+        }
+        else
+        {
+            PrintLine("Not Connected!\n");
+        }
+        return false;
+    }
+
+    bool Get(unsigned class_id, unsigned attribute, std::string obis)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsOpen())
+        {
+            EPRI::Cosem_Attribute_Descriptor Descriptor;
+
+            Descriptor.class_id = (EPRI::ClassIDType)class_id;
+            Descriptor.attribute_id = (EPRI::ObjectAttributeIdType)attribute;
+            if (Descriptor.instance_id.Parse(obis))
+            {
+                if (m_pClientEngine.Get(Descriptor, &m_GetToken))
+                {
+                    PrintLine(std::string("\tGet Request Sent: Token ") + std::to_string(m_GetToken) + "\n");
+                    return true;
+                }
+            }
+            else
+            {
+                PrintLine("Malformed OBIS Code!\n");
+            }
+        }
+        else
+        {
+            PrintLine("Not Connected!\n");
+        }
+        return false;
+    }
+
+    bool Set(unsigned class_id, unsigned attribute, std::string obis, EPRI::COSEMType MyData)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        bl.get_io_service().poll();
+        if (m_pSocket && m_pSocket->IsConnected() && m_pClientEngine.IsOpen())
+        {
+            EPRI::Cosem_Attribute_Descriptor Descriptor;
+
+            Descriptor.class_id = (EPRI::ClassIDType)class_id;
+            Descriptor.attribute_id = (EPRI::ObjectAttributeIdType)attribute;
+            if (Descriptor.instance_id.Parse(obis))
+            {
+                if (m_pClientEngine.Set(Descriptor, MyData, &m_SetToken))
+                {
+                    PrintLine(std::string("\tSet Request Sent: Token ") + std::to_string(m_SetToken) + "\n");
+                    return true;
+                }
+            }
+            else
+            {
+                PrintLine("Malformed OBIS Code!\n");
+            }
+        }
+        else
+        {
+            PrintLine("Not Connected!\n");
+        }
+        return false;
+    }
+    void PrintLine(const std::string& str) const {
+        std::cout << str;
+    }
+private:
+    EPRI::LinuxBaseLibrary     bl;
+    EPRI::ISocket* m_pSocket = nullptr;
+    LinuxClientEngine m_pClientEngine;
+    EPRI::COSEMClientEngine::RequestToken m_GetToken;
+    EPRI::COSEMClientEngine::RequestToken m_SetToken;
+    EPRI::COSEMClientEngine::RequestToken m_ActionToken;
+};
+
+bool multiRead(const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg)
+{
+    bool result{true};
+    std::cout << "Trying to connect to AP at " << apaddress << "\n";
+#if 0
+    HESsim hes(apaddress);
+    hes.open();
+    std::string payload_str{};
+    switch (cfg.get_payload_size()) {
+        case HESConfig::payload::medium:
+            payload_str = "medium";
+            break;
+        case HESConfig::payload::large:
+            payload_str = "large";
+            break;
+        default:
+            payload_str = "small";
+            break;
+    }
+    // concatenate all meter names
+    auto comma_concat = [](std::string a, std::string b) {
+        return std::move(a) + ',' + b;
+    };
+    std::string meterset = std::accumulate(meters.begin()+1, meters.end(), payload_str, comma_concat);
+    std::cout << "about to read from " << apaddress << '\n';
+#if 0
+    // read previous result from data object 2
+    result &= hes.Get(1, 2, "0-0:96.1.1*255");
+    // write to data object 1
+    result &= hes.Set(1, 2, "0-0:96.1.1*255", {EPRI::COSEMDataType::VISIBLE_STRING, meterset});
+#else
+    std::cout << "I would have written this \"" << meterset << "\"\n";
+#endif
+    std::cout << "Read from " << apaddress << '\n';
+    hes.close();
+#endif
+    return result;
+}
+
+enum class payload { small, medium, large };
+
+bool runScript(const std::string& metername, const payload cfg)
+{
+    std::cout << "Trying to connect to meter at " << metername << "\n";
+    HESsim hes(metername);
+    hes.open();
+    bool result = hes.serviceConnect(true);
+    result &= hes.Get(8, 2, "0-0:1.0.0*255");
+    switch (cfg) {
+        case payload::medium:
+            result &= hes.Get(1, 2, "0-0:96.1.4*255");
+            break;
+        case payload::large:
+            result &= hes.Get(1, 2, "0-0:96.1.9*255");
+            break;
+        default:
+            result &= hes.Get(1, 2, "0-0:96.1.0*255");
+            break;
+    }
+#if 0
+    result &= hes.Set(1, 2, "0-0:96.1.0*255", {EPRI::COSEMDataType::VISIBLE_STRING, std::string{"zzzZZZZZzzz!!"}});
+    result &= hes.Get(1, 2, "0-0:96.1.0*255");
+    result &= hes.Get(70, 2, "0-0:96.3.10*255");
+    result &= hes.Get(70, 3, "0-0:96.3.10*255");
+    result &= hes.Get(70, 4, "0-0:96.3.10*255");
+    result &= hes.serviceConnect(false);
+    result &= hes.Get(70, 2, "0-0:96.3.10*255");
+    result &= hes.Get(70, 3, "0-0:96.3.10*255");
+    result &= hes.Get(70, 4, "0-0:96.3.10*255");
+
+    // now do a firmware download
+    //  1. get image block size
+    result &= hes.Get(18, 2, "0-0:44.0.0*255");
+#endif
+    hes.close();
+    return result;
+}
+
+std::vector<std::string> meters{};
+
+using asio::ip::tcp;
+
+class tcp_connection : public std::enable_shared_from_this<tcp_connection>
+{
+public:
+    tcp_connection(tcp::socket socket) 
+        : socket_(std::move(socket))
+    {}
+
+    void start() {
+        std::string remote{socket_.remote_endpoint().address().to_string()};
+        std::cout << "Registered " << remote << '\n';
+        meters.emplace_back(remote);
+    }
+
+private:
+    tcp::socket socket_;
+};
+
+class RegistrationServer {
+public:
+    RegistrationServer(asio::io_service& io_service)
+        : socket_(io_service)
+        , acceptor_(io_service, tcp::endpoint(tcp::v6(), 4059))
+    {
+        std::cout << "Listening on port 4059\n";
+        do_accept();
+    }
+private:
+    void do_accept() {
+        acceptor_.async_accept(socket_,
+            [this](std::error_code ec) {
+                if (!ec) {
+                    std::make_shared<tcp_connection>(std::move(socket_))->start();
+                }
+                do_accept();
+            });
+    }
+
+    tcp::socket socket_;
+    tcp::acceptor acceptor_;
+};
+
+void regs() {
+    try {
+        asio::io_service io_service;
+        RegistrationServer regServer(io_service);
+        io_service.run();
+    } catch (std::exception& err) {
+        std::cerr << err.what() << '\n';
     }
 }
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        std::cerr << "Usage: HESsim APaddress\n";
+        return 1;
+    }
+    std::string APaddress{argv[1]};
+    auto thr{std::thread(regs)};
+    while (1) {
+        std::cout << "There are " << meters.size() << " registered meters\n";
+        if (cfg.get_route_only()) {
+            for (const auto &m: meters) {
+                std::cout << "Processing " << m << "\n" << ( runScript(m, cfg) ? "sucess!\n" : "Failed!\n");
+            }
+        } else {
+            std::cout << "Multiread\n" << ( multiRead(APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds{1500});
+    }
+} 
