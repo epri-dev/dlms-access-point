@@ -224,8 +224,9 @@ private:
 
 class HESsim {
 public:
-    HESsim(const std::string& meterURL, int SourceAddress = 1)
-        : m_pClientEngine{EPRI::COSEMClientEngine::Options(SourceAddress),
+    HESsim(EPRI::LinuxBaseLibrary& bl, const std::string& meterURL, int SourceAddress = 1)
+        : bl(bl)
+        , m_pClientEngine{EPRI::COSEMClientEngine::Options(SourceAddress),
             new EPRI::TCPWrapper((m_pSocket = EPRI::Base()->GetCore()->GetIP()->CreateSocket(EPRI::LinuxIP::Options(EPRI::LinuxIP::Options::MODE_CLIENT, EPRI::LinuxIP::Options::VERSION6))))}
     {
         if (EPRI::SUCCESSFUL != m_pSocket->Open(meterURL.c_str()))
@@ -387,8 +388,9 @@ public:
     void PrintLine(const std::string& str) const {
         std::cout << str;
     }
+
 private:
-    EPRI::LinuxBaseLibrary     bl;
+    EPRI::LinuxBaseLibrary& bl;
     EPRI::ISocket* m_pSocket = nullptr;
     LinuxClientEngine m_pClientEngine;
     EPRI::COSEMClientEngine::RequestToken m_GetToken;
@@ -396,8 +398,7 @@ private:
     EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
-bool multiRead(const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg)
-{
+bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg) {
     std::string payload_str{};
     switch (cfg.get_payload_size()) {
         case HESConfig::payload::medium:
@@ -417,19 +418,20 @@ bool multiRead(const std::string& apaddress, const std::vector<std::string>& met
     std::string meterset = std::accumulate(meters.begin()+1, meters.end(), payload_str, comma_concat);
     std::cout << "about to read from " << apaddress << '\n';
 
-    asio::ip::tcp::socket s(m_Base.get_io_service());
+    asio::ip::tcp::socket s(bl.get_io_service());
     asio::ip::tcp::resolver::query q(apaddress, "4059");
-    asio::ip::tcp::resolver resolver(m_Base.get_io_service());
+    asio::ip::tcp::resolver resolver(bl.get_io_service());
     asio::connect(s, resolver.resolve(q));
     asio::write(s, asio::buffer(meterset.data(), meterset.size()));
 
     return true;
 }
 
-bool runScript(const std::string& metername, const HESConfig& cfg)
+
+bool runScript(EPRI::LinuxBaseLibrary& bl, const std::string& metername, const HESConfig& cfg)
 {
     std::cout << "Trying to connect to meter at " << metername << "\n";
-    HESsim hes(metername);
+    HESsim hes(bl, metername);
     hes.open();
     bool result = hes.serviceConnect(true);
     result &= hes.Get(8, 2, "0-0:1.0.0*255");
@@ -517,6 +519,7 @@ void regs() {
         std::cerr << err.what() << '\n';
     }
 }
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: HESsim APaddress\n";
@@ -525,14 +528,15 @@ int main(int argc, char *argv[]) {
     std::string APaddress{argv[1]};
     auto thr{std::thread(regs)};
     HESConfig cfg;
+    EPRI::LinuxBaseLibrary bl;
     while (1) {
         std::cout << "There are " << meters.size() << " registered meters\n";
         if (cfg.get_route_only()) {
             for (const auto &m: meters) {
-                std::cout << "Processing " << m << "\n" << ( runScript(m, cfg) ? "sucess!\n" : "Failed!\n");
+                std::cout << "Processing " << m << "\n" << ( runScript(bl, m, cfg) ? "sucess!\n" : "Failed!\n");
             }
         } else {
-            std::cout << "Multiread\n" << ( multiRead(APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
+            std::cout << "Multiread\n" << ( multiRead(bl, APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }
