@@ -74,6 +74,7 @@
 #include <cstdarg>
 
 #include "LinuxDebug.h"
+#include "dlms-access-pointConfig.h"
 
 namespace EPRI
 {
@@ -98,7 +99,7 @@ namespace EPRI
     
     void LinuxDebug::TRACE_BUFFER(const char * Marker, const uint8_t * Buffer, size_t BufferSize, uint8_t BytesPerLine /*= 16*/)
     {
-#if 0
+#ifdef HEX_TRACE
         TRACE("\n%s: ", Marker);
         const uint8_t * p = Buffer;
         while (p != (Buffer + BufferSize))
@@ -110,12 +111,14 @@ namespace EPRI
             }
         }
         TRACE("\n");
-#endif
+#endif // HEX_TRACE
     }
     
     void LinuxDebug::TRACE_VECTOR(const char * Marker, const DLMSVector& Data, uint8_t BytesPerLine /*= 16*/)
     {
-        //TRACE_BUFFER(Marker, Data.GetData(), Data.Size(), BytesPerLine);
+#ifdef HEX_TRACE
+        TRACE_BUFFER(Marker, Data.GetData(), Data.Size(), BytesPerLine);
+#endif // HEX_TRACE
     }
 
     

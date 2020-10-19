@@ -7,6 +7,9 @@ project(dlms-access-point
     VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 11)
 
+# options off-by-default that you can enable
+option(HEX_TRACE "Include detailed hex trace for DLMS messages" OFF)
+
 # load additional detection for ASIO
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 

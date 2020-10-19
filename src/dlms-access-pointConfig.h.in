@@ -77,4 +77,5 @@
 #define dlms_access_point_VERSION_MINOR @PROJECT_VERSION_MINOR@
 #define dlms_access_point_VERSION_MICRO @PROJECT_VERSION_MICRO@
 #define dlms_access_point_VERSION "@PROJECT_VERSION@"
+#cmakedefine HEX_TRACE
 #endif // DLMSACCESSPOINTCONFIG_H
