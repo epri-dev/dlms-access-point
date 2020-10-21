@@ -34,4 +34,4 @@ add_custom_target(
 )
 
 ## install things
-INSTALL(TARGETS docker-entrypoint.sh DESTINATION bin)
+INSTALL(FILE docker-entrypoint.sh DESTINATION bin)
