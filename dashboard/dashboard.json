@@ -1,0 +1,168 @@
+{
+	"version": 1,
+	"header_image": "https://s3.amazonaws.com/skipsolabs-epri/froala/uploadedContent/uploads/transparent-EPRI-logo.png",
+	"allow_edit": true,
+	"plugins": [],
+	"panes": [
+		{
+			"title": "HES configuration",
+			"width": 1,
+			"row": {
+				"3": 1,
+				"4": 1
+			},
+			"col": {
+				"3": 1,
+				"4": 1
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "html",
+					"settings": {
+						"html": "<script>\n    const HESsocket = new WebSocket('ws://localhost:4060');\nfunction sendConfig() {\n    var payloadlength = document.querySelector('[name=payloadlength]:checked').value;\n    var routeonly = document.querySelector('[name=routeonly]').checked;\n    var json = `{\"hes\":{\"payload_size\":\"${payloadlength}\",\"route_only\":\"${routeonly}\"}}`;\n    HESsocket.send(json);\n    return true;\n}\n</script>\n<style>\n.button {\n    margin: 15px 32px;\n}\n</style>\n<form id=\"netcontrol\" action=\"javascript:void(0);\" onsubmit=\"sendConfig()\">\n  <p>&nbsp;Read data length:</p>\n  <input type=\"radio\" id=\"small\" name=\"payloadlength\" value=\"small\" checked=\"checked\">\n  <label for=\"small\">small</label><br>\n  <input type=\"radio\" id=\"medium\" name=\"payloadlength\" value=\"medium\">\n  <label for=\"medium\">medium</label><br>\n  <input type=\"radio\" id=\"large\" name=\"payloadlength\" value=\"large\">\n  <label for=\"large\">large</label>\n  <p>&nbsp;Route only</p>\n  <input type=\"checkbox\" id=\"routeonly\" name=\"routeonly\" checked=\"checked\">\n  <button type=\"submit\" class=\"button\">Set configuration</button>\n</form>\n",
+						"height": 4
+					}
+				}
+			]
+		},
+		{
+			"title": "Field Area Network",
+			"width": 1,
+			"row": {
+				"3": 1,
+				"4": 11
+			},
+			"col": {
+				"3": 2,
+				"4": 2
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets received",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth1\"][\"rx_packets\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "packets"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets sent",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth1\"][\"tx_packets\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "packets"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Bytes received",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth1\"][\"rx_bytes\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "bytes"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Bytes Sent",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth1\"][\"tx_bytes\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "bytes"
+					}
+				}
+			]
+		},
+		{
+			"title": "Backhaul Network",
+			"width": 1,
+			"row": {
+				"3": 1,
+				"4": 11
+			},
+			"col": {
+				"3": 3,
+				"4": 1
+			},
+			"col_width": 1,
+			"widgets": [
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets received",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth0\"][\"rx_packets\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "packets"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Packets sent",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth0\"][\"tx_packets\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "packets"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Bytes received",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth0\"][\"rx_bytes\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "bytes"
+					}
+				},
+				{
+					"type": "text_widget",
+					"settings": {
+						"title": "Bytes sent",
+						"size": "regular",
+						"value": "datasources[\"ap\"][\"kernel\"][\"eth0\"][\"tx_bytes\"]",
+						"sparkline": true,
+						"animate": false,
+						"units": "bytes"
+					}
+				}
+			]
+		}
+	],
+	"datasources": [
+		{
+			"name": "seconds",
+			"type": "clock",
+			"settings": {
+				"refresh": 1,
+				"name": "seconds"
+			}
+		},
+		{
+			"name": "ap",
+			"type": "epri_netstat",
+			"settings": {
+				"url": "ws://localhost:8888",
+				"request": "{netstat}",
+				"refresh_time": "2000"
+			}
+		}
+	],
+	"columns": 3
+}
