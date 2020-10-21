@@ -6,5 +6,5 @@ COPY --from=beroset/dlms-access-point-builder /tmp/build/src/DLMS_sim .
 COPY --from=beroset/dlms-access-point-builder /tmp/build/src/HESsim .
 COPY --from=beroset/dlms-access-point-builder /tmp/build/src/Metersim .
 COPY --from=beroset/dlms-access-point-builder /tmp/build/src/APsim .
-COPY --from=beroset/dlms-access-point-builder /tmp/build/src/websocket/taskrunner .
+COPY --from=beroset/dlms-access-point-builder /tmp/build/src/websocket/taskrunner ./websocket/.
 COPY --from=beroset/dlms-access-point-builder /tmp/src/docker/demo/docker-entrypoint.sh .
