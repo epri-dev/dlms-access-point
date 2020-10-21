@@ -1,6 +1,6 @@
 {
 	"version": 1,
-	"header_image": "https://s3.amazonaws.com/skipsolabs-epri/froala/uploadedContent/uploads/transparent-EPRI-logo.png",
+	"header_image": "transparent-EPRI-logo.png",
 	"allow_edit": true,
 	"plugins": [],
 	"panes": [
