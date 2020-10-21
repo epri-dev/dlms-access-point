@@ -3,7 +3,7 @@ services:
     access-point:
         image: beroset/dlms-access-point
         entrypoint: 
-            - /tmp/docker-entrypoint.sh
+            - /usr/local/bin/docker-entrypoint.sh
             - "access-point"
             - 2001:3200:3201::100:100 
             - "8888"
@@ -25,7 +25,7 @@ services:
     meter:
         image: beroset/dlms-access-point
         entrypoint: 
-            - /tmp/docker-entrypoint.sh
+            - /usr/local/bin/docker-entrypoint.sh
             - "meter"
             - 2001:3200:3201::100:100 
             - "8888"
@@ -41,7 +41,7 @@ services:
     hes:
         image: beroset/dlms-access-point
         entrypoint: 
-            - /tmp/HESsim
+            - /usr/local/bin/HESsim
             - 2001:3200:3201::100:101
         expose:
             - "4059/tcp"

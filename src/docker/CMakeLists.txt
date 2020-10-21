@@ -33,3 +33,5 @@ add_custom_target(
     COMMENT "Creating container with shared volume..." VERBATIM
 )
 
+## install things
+INSTALL(TARGETS docker-entrypoint.sh DESTINATION bin)

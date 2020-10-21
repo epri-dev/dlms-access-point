@@ -18,6 +18,7 @@ RUN mkdir ./build && \
     cd ./build && \
     cmake -Wno-dev .. && \
     make && \
+    make install && \
     make pdf
 
 WORKDIR /tmp/build/doc/html/
