@@ -3,13 +3,21 @@ services:
     access-point:
         image: beroset/dlms-access-point
         entrypoint: 
-            - /tmp/Metersim
+            - /tmp/docker-entrypoint.sh
+            - "access-point"
             - 2001:3200:3201::100:100 
+            - "8888"
         expose:
             - "4059/tcp"
+        ports:
+            # this port is used to get network stats and control tc qdisc netem
+            - "8888:8888"
         networks:
-            - meternet
-            - backhaul
+            meternet:
+            backhaul:
+              ipv6_address: 2001:3200:3201::100:101
+        cap_add:
+            - NET_ADMIN
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
             net.ipv6.conf.all.forwarding: 1
@@ -17,12 +25,16 @@ services:
     meter:
         image: beroset/dlms-access-point
         entrypoint: 
-            - /tmp/Metersim 
+            - /tmp/docker-entrypoint.sh
+            - "meter"
             - 2001:3200:3201::100:100 
+            - "8888"
         expose:
             - "4059/tcp"
         networks:
             - meternet
+        cap_add:
+            - NET_ADMIN
         sysctls:
             net.ipv6.conf.all.disable_ipv6: 0
 
@@ -30,8 +42,11 @@ services:
         image: beroset/dlms-access-point
         entrypoint: 
             - /tmp/HESsim
+            - 2001:3200:3201::100:101
         expose:
             - "4059/tcp"
+        ports:
+            - "4060:4060"
         networks:
             backhaul:
               ipv6_address: 2001:3200:3201::100:100
