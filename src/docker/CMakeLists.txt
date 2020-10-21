@@ -20,7 +20,7 @@ configure_file (
 )
 
 configure_file (
-  "${CMAKE_CURRENT_LIST_DIR}/demo/docker-entrypoint.sh"
+  "${CMAKE_CURRENT_LIST_DIR}/docker-entrypoint.sh"
   "${PROJECT_BINARY_DIR}/src/docker-entrypoint.sh"
   COPYONLY
 )
