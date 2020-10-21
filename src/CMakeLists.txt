@@ -24,12 +24,11 @@ add_subdirectory(doc)
 add_subdirectory(docker)
 
 link_directories(${DLMS_LIBRARY_BASE_DIR}/build/lib/DLMS-COSEM/)
-set(DLMS_SERVER_COMMON_SOURCES LinuxCOSEMServer.cpp LinuxClock.cpp LinuxData.cpp LinuxDisconnect.cpp LinuxImageTransfer.cpp)
 
 ## finally some executables
-add_executable(DLMS_sim Linux.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
-add_executable(Metersim Metersim.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
-add_executable(APsim APsim.cpp) # ${DLMS_SERVER_COMMON_SOURCES} ${DLMS_COMMON_SOURCES})
+add_executable(DLMS_sim Linux.cpp)
+add_executable(Metersim Metersim.cpp)
+add_executable(APsim APsim.cpp)
 add_executable(HESsim HESsim.cpp)
 
 ## and the various required libraries
