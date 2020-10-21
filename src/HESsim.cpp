@@ -398,7 +398,7 @@ private:
     EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
-bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg) {
+bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg) { 
     std::string payload_str{};
     switch (cfg.get_payload_size()) {
         case HESConfig::payload::medium:
@@ -428,40 +428,43 @@ bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const s
 }
 
 
-bool runScript(EPRI::LinuxBaseLibrary& bl, const std::string& metername, const HESConfig& cfg)
+bool runScript(EPRI::LinuxBaseLibrary& bl, const std::vector<std::string>& meters, const HESConfig& cfg)
 {
-    std::cout << "Trying to connect to meter at " << metername << "\n";
-    HESsim hes(bl, metername);
-    hes.open();
-    bool result = hes.serviceConnect(true);
-    result &= hes.Get(8, 2, "0-0:1.0.0*255");
-    switch (cfg.get_payload_size()) {
-        case HESConfig::payload::medium:
-            result &= hes.Get(1, 2, "0-0:96.1.4*255");
-            break;
-        case HESConfig::payload::large:
-            result &= hes.Get(1, 2, "0-0:96.1.9*255");
-            break;
-        default:
-            result &= hes.Get(1, 2, "0-0:96.1.0*255");
-            break;
-    }
+    bool result{true};
+    for (const auto& metername : meters) {
+        std::cout << "Trying to connect to meter at " << metername << "\n";
+        HESsim hes(bl, metername);
+        hes.open();
+        result &= hes.serviceConnect(true);
+        result &= hes.Get(8, 2, "0-0:1.0.0*255");
+        switch (cfg.get_payload_size()) {
+            case HESConfig::payload::medium:
+                result &= hes.Get(1, 2, "0-0:96.1.4*255");
+                break;
+            case HESConfig::payload::large:
+                result &= hes.Get(1, 2, "0-0:96.1.9*255");
+                break;
+            default:
+                result &= hes.Get(1, 2, "0-0:96.1.0*255");
+                break;
+        }
 #if 0
-    result &= hes.Set(1, 2, "0-0:96.1.0*255", {EPRI::COSEMDataType::VISIBLE_STRING, std::string{"zzzZZZZZzzz!!"}});
-    result &= hes.Get(1, 2, "0-0:96.1.0*255");
-    result &= hes.Get(70, 2, "0-0:96.3.10*255");
-    result &= hes.Get(70, 3, "0-0:96.3.10*255");
-    result &= hes.Get(70, 4, "0-0:96.3.10*255");
-    result &= hes.serviceConnect(false);
-    result &= hes.Get(70, 2, "0-0:96.3.10*255");
-    result &= hes.Get(70, 3, "0-0:96.3.10*255");
-    result &= hes.Get(70, 4, "0-0:96.3.10*255");
+        result &= hes.Set(1, 2, "0-0:96.1.0*255", {EPRI::COSEMDataType::VISIBLE_STRING, std::string{"zzzZZZZZzzz!!"}});
+        result &= hes.Get(1, 2, "0-0:96.1.0*255");
+        result &= hes.Get(70, 2, "0-0:96.3.10*255");
+        result &= hes.Get(70, 3, "0-0:96.3.10*255");
+        result &= hes.Get(70, 4, "0-0:96.3.10*255");
+        result &= hes.serviceConnect(false);
+        result &= hes.Get(70, 2, "0-0:96.3.10*255");
+        result &= hes.Get(70, 3, "0-0:96.3.10*255");
+        result &= hes.Get(70, 4, "0-0:96.3.10*255");
 
-    // now do a firmware download
-    //  1. get image block size
-    result &= hes.Get(18, 2, "0-0:44.0.0*255");
+        // now do a firmware download
+        //  1. get image block size
+        result &= hes.Get(18, 2, "0-0:44.0.0*255");
 #endif
-    hes.close();
+        hes.close();
+    }
     return result;
 }
 
@@ -532,9 +535,7 @@ int main(int argc, char *argv[]) {
     while (1) {
         std::cout << "There are " << meters.size() << " registered meters\n";
         if (cfg.get_route_only()) {
-            for (const auto &m: meters) {
-                std::cout << "Processing " << m << "\n" << ( runScript(bl, m, cfg) ? "sucess!\n" : "Failed!\n");
-            }
+            std::cout << "Processing\n" << ( runScript(bl, meters, cfg) ? "sucess!\n" : "Failed!\n");
         } else {
             std::cout << "Multiread\n" << ( multiRead(bl, APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
         }
