@@ -437,13 +437,27 @@ public:
 
     void start(Config& cfg) {
         std::string remote{socket_.remote_endpoint().address().to_string()};
-        // TODO: read and parse multi-meter read request
         std::cout << "Multiread request from " << remote << '\n';
-        cfg.meters.emplace_back(remote);
+        socket_.async_read_some(asio::buffer(data_, max_length),
+            std::bind(&tcp_connection::handle_read, this,
+                asio::error,
+                asio::bytes_transferred)
+        );
+    }
+
+    void handle_read(const std::error_code& error,
+        size_t bytes_transferred) {
+        if (!error) {
+            std::cout << "Received " << data_;
+        } else {
+            delete this;
+        }
     }
 
 private:
     tcp::socket socket_;
+    static constexpr unsigned max_length{1024};
+    char data_[max_length];
 };
 
 class RegistrationServer {
