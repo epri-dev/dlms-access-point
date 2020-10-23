@@ -438,11 +438,13 @@ public:
     void start(Config& cfg) {
         std::string remote{socket_.remote_endpoint().address().to_string()};
         std::cout << "Multiread request from " << remote << '\n';
+#if 0
         socket_.async_read_some(asio::buffer(data_, max_length),
             std::bind(&tcp_connection::handle_read, this,
-                asio::error,
+                asio::placeholders::error,
                 asio::bytes_transferred)
         );
+#endif
     }
 
     void handle_read(const std::error_code& error,
@@ -486,25 +488,21 @@ private:
     Config& cfg;
 };
 
-void regs(Config& cfg) {
-    try {
-        asio::io_service io_service;
-        RegistrationServer regServer(io_service, cfg);
-        io_service.run();
-    } catch (std::exception& err) {
-        std::cerr << err.what() << '\n';
-    }
-}
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: APsim APaddress\n";
         return 1;
     }
     std::string APaddress{argv[1]};
+    std::cout << "APsim line " << __LINE__ << std::endl;
     Config cfg;
-    auto thr{std::thread(regs, std::ref(cfg))};
+    std::cout << "APsim line " << __LINE__ << std::endl;
     EPRI::LinuxBaseLibrary bl;
+    std::cout << "APsim line " << __LINE__ << std::endl;
+    RegistrationServer regServer(bl.get_io_service(), cfg);
+    std::cout << "APsim line " << __LINE__ << std::endl;
     while (1) {
+        std::cout << "APsim line " << __LINE__ << std::endl;
         std::cout << "There are " << cfg.meters.size() << " registered meters\n";
         std::cout << ( runScript(bl, cfg) ? "sucess!\n" : "Failed!\n");
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
