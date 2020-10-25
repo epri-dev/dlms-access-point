@@ -83,16 +83,18 @@
 #include <cstdio>
 #include <cstdlib>
 #include <time.h>
-#include <ctype.h>
+#include <cctype>
 #include <unistd.h>
 #include <iomanip>
 #include <asio.hpp>
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <chrono>
 #include <thread>
 #include <memory>
 #include <numeric>
+#include <mutex>
 
 class LinuxClientEngine : public EPRI::COSEMClientEngine
 {
@@ -134,7 +136,9 @@ public:
                     SerialNumbers.value = Response.Result.get<EPRI::DLMSVector>();
                     if (EPRI::COSEMType::VALUE_RETRIEVED == SerialNumbers.value.GetNextValue(&Value))
                     {
-                        EPRI::Base()->GetDebug()->TRACE("%s\n", EPRI::DLMSValueGet<EPRI::VISIBLE_STRING_CType>(Value).c_str());
+                        recent = EPRI::DLMSValueGet<EPRI::VISIBLE_STRING_CType>(Value);
+                        std::cout << "Setting recent to \"" << recent << "\"\n";
+                        EPRI::Base()->GetDebug()->TRACE("%s\n", recent.c_str());
                     }
 
                 }
@@ -216,8 +220,13 @@ public:
         }
         return true;
     }
+
+    std::string recent_data() const {
+        return recent;
+    }
 private:
     EPRI::Transport * pXPort{nullptr};
+    std::string recent;
 };
 
 
@@ -387,6 +396,9 @@ public:
     void PrintLine(const std::string& str) const {
         std::cout << str;
     }
+    std::string recent_data() const {
+        return m_pClientEngine.recent_data();
+    }
 private:
     EPRI::LinuxBaseLibrary& bl;
     EPRI::ISocket* m_pSocket = nullptr;
@@ -396,31 +408,89 @@ private:
     EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
-struct Config {
-    enum class payload { small, medium, large } payload_size;
-    std::vector<std::string> meters{};
+class Config {
+public:
+    enum class Payload { small, medium, large };
+    Config(const Config& other) = delete;
+    Config(Config&& other) = delete;
+    Config(const std::string& data) {
+        if (!std::all_of(data.cbegin(), data.cend(), isprint)) {
+            throw std::range_error("invalid string");
+        }
+        std::stringstream ss{data};
+        std::string item;
+        std::string plsize;
+        if (std::getline(ss, plsize, ',')) {
+            while (std::getline(ss, item, ',')) {
+                meters_.emplace_back(item);
+            }
+            if (plsize == "small") {
+                payload_size_ = Payload::small;
+                std::swap(meters_, meters_);
+            } else if (plsize == "medium") {
+                payload_size_ = Payload::medium;
+                std::swap(meters_, meters_);
+            } else if (plsize == "large") {
+                payload_size_ = Payload::large;
+                std::swap(meters_, meters_);
+            } else {
+                throw std::range_error("invalid Payload size");
+            }
+        }
+    }
+    void interpret(const std::string& data) {
+        try {
+            Config other{data};
+            const std::lock_guard<std::mutex> lock(mtx_);
+            std::swap(meters_, other.meters_);
+            std::swap(payload_size_, other.payload_size_);
+        } catch (std::range_error r) {
+            std::cerr << r.what() << ": " << data << '\n';
+        }
+    }
+    std::vector<std::string> meters() const {
+        const std::lock_guard<std::mutex> lock(mtx_);
+        return meters_;
+    }
+    std::size_t count() const { 
+        const std::lock_guard<std::mutex> lock(mtx_);
+        return meters_.size();
+    }
+    const Payload payload_size() const {
+        const std::lock_guard<std::mutex> lock(mtx_);
+        return payload_size_;
+    }
+    void clear() {
+        const std::lock_guard<std::mutex> lock(mtx_);
+        meters_.clear();
+    }
+private:
+    Payload payload_size_;
+    std::vector<std::string> meters_{};
+    mutable std::mutex mtx_;
 };
 
-bool runScript(EPRI::LinuxBaseLibrary& bl, const Config cfg) {
-    bool result{true};
-    for (const auto& metername : cfg.meters) {
+std::vector<std::pair<std::string, std::string>> runScript(EPRI::LinuxBaseLibrary& bl, const Config& cfg) {
+    std::vector<std::pair<std::string, std::string>> result;
+    const auto meters{cfg.meters()};
+    for (const auto& metername : meters) {
         std::cout << "Trying to connect to meter at " << metername << "\n";
         APsim apsim(bl, metername);
         apsim.open();
-        bool result = apsim.serviceConnect(true);
-        result &= apsim.Get(8, 2, "0-0:1.0.0*255");
-        switch (cfg.payload_size) {
-            case Config::payload::medium:
-                result &= apsim.Get(1, 2, "0-0:96.1.4*255");
+        switch (cfg.payload_size()) {
+            case Config::Payload::medium:
+                apsim.Get(1, 2, "0-0:96.1.4*255");
                 break;
-            case Config::payload::large:
-                result &= apsim.Get(1, 2, "0-0:96.1.9*255");
+            case Config::Payload::large:
+                apsim.Get(1, 2, "0-0:96.1.9*255");
                 break;
             default:
-                result &= apsim.Get(1, 2, "0-0:96.1.0*255");
+                apsim.Get(1, 2, "0-0:96.1.0*255");
                 break;
         }
         apsim.close();
+        std::cout << "Saving " << apsim.recent_data() << "\n";
+        result.emplace_back(metername, apsim.recent_data());
     }
     return result;
 }
@@ -437,22 +507,20 @@ public:
 
     void start(Config& cfg) {
         std::string remote{socket_.remote_endpoint().address().to_string()};
-        std::cout << "Multiread request from " << remote << '\n';
-#if 0
         socket_.async_read_some(asio::buffer(data_, max_length),
             std::bind(&tcp_connection::handle_read, this,
-                asio::placeholders::error,
-                asio::bytes_transferred)
+                std::placeholders::_1,
+                std::placeholders::_2,
+                std::ref(cfg))
         );
-#endif
     }
 
-    void handle_read(const std::error_code& error,
-        size_t bytes_transferred) {
+    void handle_read(const std::error_code& error, size_t bytes_transferred, Config& cfg) {
         if (!error) {
-            std::cout << "Received " << data_;
+            cfg.interpret(std::string{data_, bytes_transferred});
         } else {
-            delete this;
+            std::cout << "Got an error in 'handle_read()' on line " << __LINE__ << std::endl;
+            // delete this;
         }
     }
 
@@ -488,23 +556,34 @@ private:
     Config& cfg;
 };
 
+void regs(Config& cfg) {
+    try {
+        asio::io_service io_service;
+        RegistrationServer regServer(io_service, cfg);
+        io_service.run();
+    } catch (std::exception& err) {
+        std::cerr << err.what() << '\n';
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: APsim APaddress\n";
         return 1;
     }
     std::string APaddress{argv[1]};
-    std::cout << "APsim line " << __LINE__ << std::endl;
-    Config cfg;
-    std::cout << "APsim line " << __LINE__ << std::endl;
+    Config cfg("small,");
     EPRI::LinuxBaseLibrary bl;
-    std::cout << "APsim line " << __LINE__ << std::endl;
-    RegistrationServer regServer(bl.get_io_service(), cfg);
-    std::cout << "APsim line " << __LINE__ << std::endl;
+    std::thread thr{regs, std::ref(cfg)};
     while (1) {
-        std::cout << "APsim line " << __LINE__ << std::endl;
-        std::cout << "There are " << cfg.meters.size() << " registered meters\n";
-        std::cout << ( runScript(bl, cfg) ? "sucess!\n" : "Failed!\n");
+        std::cout << "There are " << cfg.count() << " registered meters\n";
+        auto meterdata{runScript(bl, cfg)};
+        std::cout << "{\"meterdata\":[\n";
+        for (const auto& pair : meterdata) {
+            std::cout << "{\"meter\":\"" << pair.first << "\",\"data\":\"" << pair.second << "\"},\n";
+        }
+        std::cout << "]}\n";
+        cfg.clear();
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }
 } 

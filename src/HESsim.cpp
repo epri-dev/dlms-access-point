@@ -94,6 +94,7 @@
 #include <thread>
 #include <memory>
 #include <numeric>
+#include <set>
 
 class LinuxClientEngine : public EPRI::COSEMClientEngine
 {
@@ -398,7 +399,7 @@ private:
     EPRI::COSEMClientEngine::RequestToken m_ActionToken;
 };
 
-bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const std::vector<std::string>& meters, const HESConfig& cfg) { 
+bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const std::set<std::string>& meters, const HESConfig& cfg) { 
     std::string payload_str{};
     switch (cfg.get_payload_size()) {
         case HESConfig::payload::medium:
@@ -415,20 +416,22 @@ bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const s
     auto comma_concat = [](std::string a, std::string b) {
         return std::move(a) + ',' + b;
     };
-    std::string meterset = std::accumulate(meters.begin()+1, meters.end(), payload_str, comma_concat);
+    std::string meterset = std::accumulate(meters.begin(), meters.end(), payload_str, comma_concat);
     std::cout << "about to read from " << apaddress << '\n';
+    std::cout << "With string: \"" << meterset << "\"\n";
 
     asio::ip::tcp::socket s(bl.get_io_service());
     asio::ip::tcp::resolver::query q(apaddress, "4059");
     asio::ip::tcp::resolver resolver(bl.get_io_service());
     asio::connect(s, resolver.resolve(q));
     asio::write(s, asio::buffer(meterset.data(), meterset.size()));
+    std::this_thread::sleep_for(std::chrono::milliseconds{100});
 
     return true;
 }
 
 
-bool runScript(EPRI::LinuxBaseLibrary& bl, const std::vector<std::string>& meters, const HESConfig& cfg)
+bool runScript(EPRI::LinuxBaseLibrary& bl, const std::set<std::string>& meters, const HESConfig& cfg)
 {
     bool result{true};
     for (const auto& metername : meters) {
@@ -468,7 +471,7 @@ bool runScript(EPRI::LinuxBaseLibrary& bl, const std::vector<std::string>& meter
     return result;
 }
 
-std::vector<std::string> meters{};
+std::set<std::string> meters{};
 
 using asio::ip::tcp;
 
@@ -478,11 +481,16 @@ public:
     tcp_connection(tcp::socket socket) 
         : socket_(std::move(socket))
     {}
+    ~tcp_connection() {
+        std::cout << "Destruction of tcp_connection" << std::endl;
+    }
 
     void start() {
+        std::array<uint8_t, 1024> buffer;
         std::string remote{socket_.remote_endpoint().address().to_string()};
         std::cout << "Registered " << remote << '\n';
-        meters.emplace_back(remote);
+        meters.insert(remote);
+        socket_.receive(asio::buffer(buffer, buffer.size()));
     }
 
 private:
@@ -529,15 +537,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     std::string APaddress{argv[1]};
-    auto thr{std::thread(regs)};
     HESConfig cfg;
     EPRI::LinuxBaseLibrary bl;
+    std::thread thr{regs};
     while (1) {
         std::cout << "There are " << meters.size() << " registered meters\n";
-        if (cfg.get_route_only()) {
-            std::cout << "Processing\n" << ( runScript(bl, meters, cfg) ? "sucess!\n" : "Failed!\n");
-        } else {
-            std::cout << "Multiread\n" << ( multiRead(bl, APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
+        if (1) { //(meters.size()) {
+            if (cfg.get_route_only()) {
+                std::cout << "Processing\n" << ( runScript(bl, meters, cfg) ? "sucess!\n" : "Failed!\n");
+            } else {
+                std::cout << "Multiread\n" << ( multiRead(bl, APaddress, meters, cfg) ? "sucess!\n" : "Failed!\n");
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }

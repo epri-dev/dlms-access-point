@@ -103,14 +103,22 @@ public:
     }
 
     virtual bool Register(const char *HESaddress) {
-        static const std::string RegRequest{"R"};
-        asio::ip::tcp::socket s(m_Base.get_io_service());
-        asio::ip::tcp::resolver::query q(HESaddress, "4059");
-        asio::ip::tcp::resolver resolver(m_Base.get_io_service());
-        asio::connect(s, resolver.resolve(q));
-        asio::write(s, asio::buffer(RegRequest.data(), RegRequest.size()));
-        return true;
+        bool result{false};
+        try {
+            static const std::string RegRequest{"R"};
+            asio::ip::tcp::socket s(m_Base.get_io_service());
+            asio::ip::tcp::resolver::query q(HESaddress, "4059");
+            asio::ip::tcp::resolver resolver(m_Base.get_io_service());
+            asio::connect(s, resolver.resolve(q));
+            asio::write(s, asio::buffer(RegRequest.data(), RegRequest.size()));
+            result = true;
+        } catch (std::exception& err)
+        {
+            std::cerr << err.what() << std::endl;
+        }
+        return result;
     }
+
 
 protected:
     void Server_Handler()
