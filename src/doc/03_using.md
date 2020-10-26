@@ -70,8 +70,8 @@ The `bridge`, `host` and `none` networks are defaults created by Docker and we c
 
 These network ID numbers are also used by Wireshark.  If we open Wireshark and examine the available capture interfaces, we should see a list that includes devices name `br-504ff5c36600` which is the virtual bridge that is associated with the `dlms-access-point_backhaul` network and `br-0d4d71970f84` which corresponds with the `dlms-access-point_meternet` network.  If we select the `dlms-access-point_backhaul` capture interfaces and start a capture, we might see something like that shown in the picture below.
 
-    @image html Wireshark1.png "Wireshark screen shot"
-    @image latex Wireshark1.png "Wireshark screen shot" width=\textwidth
+@image html Wireshark1.png "Wireshark screen shot"
+@image latex Wireshark1.png "Wireshark screen shot" width=\textwidth
 
 We can see that the HES which has address 2001:3200:3201::100:100 is communicating with two meters with addresses 2001:3200:3200::3 and 2001:3200:3200::4.  Because the server is communicating directly with the devices, we know this must mean that the Access Point is operating in Mode 1 (route only).  We can also see that frame 2238 in this capture contains the response from meter ::3 to the HES. 
 
@@ -81,4 +81,4 @@ There are two ways to stop the software, depending on how it was started.  If it
 
 ## Further reading
 
-    [Adapting the software](@ref design)
+[Adapting the software](@ref design)
