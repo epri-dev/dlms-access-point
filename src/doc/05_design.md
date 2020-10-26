@@ -100,12 +100,14 @@ nothing implemented
 </table>
 
 ## HES simulator
-The Head-End System simulator here has only one job, which is to communicate with the simulated meters.  At the moment, the HES only has three things that it can do:
+The Head-End System simulator here has only one job, which is to communicate with the simulated meters.  At the moment, the HES only has a few things that it can do:
 
   1. get the time of day from the Clock object (implemented via the EPRI::LinuxClock class)
   2. operate the connect/disconnect via the Disconnect object (implemented via the EPRI::LinuxDisconnect class)
   3. write a large amount of data (implemented via the EPRI::LinuxImageTransfer class)
   4. read a large amount of data (via the EPRI::LinuxData class)
+
+Additionally, it listens for meters to register with it using a non-DLMS protocol.  That is, each meter simply opens a TCPv6 connection and sends a single "R" to register.  The HES simulator then remembers the IPv6 address of the meter and uses that address to communicate with each meter either directly or indirectly, depending on the mode of the Access Point as described below.
 
 ## Access Point (AP) simulator
 The AP can operate in any of three Modes:
