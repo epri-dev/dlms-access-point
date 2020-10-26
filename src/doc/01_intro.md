@@ -38,9 +38,9 @@ A Mode 3 Access Point implements a hybrid of the Mode 1 and Mode 2 functions.  T
 # Simulated network
 This tool provides a reference implementation of an Access Point that serves as an intermediary between meters on the Field Area Network (FAN) and the HES on the backhaul network. It also provides a way to examine the communications flows among the simulated components as though they were part of a real AMI system.
 
-In its default operating mode, the software will create three simulated meters, a simulated HES and a simulated Access Point.  The interaction among the software pieces is entirely automated and periodic.  Every ten seconds, the HES sends some kind of request to the Access Point simulator.  The Access Point simulator, in turn, passes this message to the simulated meters according to the current operating Mode as described above. 
+In its default operating mode, the software will create one simulated meter, a simulated HES and a simulated Access Point.  The interaction among the software pieces is entirely automated and periodic.  Every 1.5 seconds, the HES sends some kind of request to the Access Point simulator.  The Access Point simulator, in turn, passes this message to the simulated meters according to the current operating Mode as described above. 
 
-The `dashboard` provides a way to control the devices of the simulated network and can be accessed as `http://localhost:8081/`.
+The `dashboard` provides a way to control the devices of the simulated network and can be accessed as `http://localhost:8081/index.html?load=dashboard.json`.
 
 The `docserver` provides a convenient means of viewing all of the documentation and can be accessed as `http://localhost:8080/`.
 
