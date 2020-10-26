@@ -1,10 +1,9 @@
 # How to use this software # {#using}
 
-Before the software is run, it will need to be built, which is described in [How to build this software](@ref building) and in [Native Linux build](@ref native).
-
 This software is intended to be run in containers using `docker-compose` and so the host system must have that software installed and configured and meet the other configuration prerequisites as documented in [How to build this software](@ref building).
 
 ## Docker images ##
+
 [Docker](https://docs.docker.com/) is software that provides a way to run applications securely isolated in a container, packaged with all its dependencies and libraries.  There is also container orchestration software called `docker-compose` which is an optional part of Docker.  Using `docker-compose` we can very simply get everything running simply by using the command:
 
     docker-compose up 
@@ -19,7 +18,7 @@ At this point we have six docker containers:
  4. dashboard server
  5. documentation server
 
-### The components
+### The components ###
 The interaction among the software pieces is entirely automated and periodic.  Each of the components is described below.
 
 Each *simulated meter* first attempts to register with the HES.  The registration mechanism is to establish a TCPv6 session with the HES and send a single letter "R" (for Register).  If this is successful, the meter passively listens for DLMS/COSEM requests which can include both data reads and writes and service disconnect/reconnect commands.  See [How it works](@ref design) for details on exactly what the simulator supports.
@@ -49,12 +48,12 @@ The *dashboard server* is web server at `http://localhost:8081/index.html?load=d
 
 The *documentation server* is a also a separate web server serving the documentation you are now reading.  It includes not only documentation on the software and how to use it, but also detailed information on all of the files and C++ classes that make up the software components.  The documentation server maps to port 8080 on the host, so viewing the documentation is as simple as using any web browser and going to http://localhost:8080/ to see the main page of this documentation.
 
-### Examining simulator communications with Wireshark
-    As these messages are being communicating among the simulated devices, there is little visual representation of what is happening except for some logging messages that appear in the console.  However, one can use the free and open source [Wireshark](https://www.wireshark.org/#download) network packet analyzer tool to examine the traffic among the simulated machines.  
+### Examining simulator communications with Wireshark ###
+As these messages are being communicating among the simulated devices, there is little visual representation of what is happening except for some logging messages that appear in the console.  However, one can use the free and open source [Wireshark](https://www.wireshark.org/#download) network packet analyzer tool to examine the traffic among the simulated machines.  
 
-    First, let's look at the networks that `docker-compose` has created for us:
+First, let's look at the networks that `docker-compose` has created for us:
 
-        docker network ls
+    docker network ls
 
 This lists the networks.  The output is something like this:
 
