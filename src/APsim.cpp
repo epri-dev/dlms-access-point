@@ -470,8 +470,17 @@ private:
     mutable std::mutex mtx_;
 };
 
-std::vector<std::pair<std::string, std::string>> runScript(EPRI::LinuxBaseLibrary& bl, const Config& cfg) {
-    std::vector<std::pair<std::string, std::string>> result;
+/// very simple class representing a meter reading
+struct MeterReading {
+    std::string meterAddr;
+    std::string meterData;
+    friend std::ostream& operator<<(std::ostream& out, const MeterReading& mr) {
+        return out << "{\"meter\":\"" << mr.meterAddr << "\",\"data\":\"" << mr.meterData << "\"}";
+    }
+};
+
+std::vector<MeterReading> runScript(EPRI::LinuxBaseLibrary& bl, const Config& cfg) {
+    std::vector<MeterReading> result;
     const auto meters{cfg.meters()};
     for (const auto& metername : meters) {
         std::cout << "Trying to connect to meter at " << metername << "\n";
@@ -490,7 +499,7 @@ std::vector<std::pair<std::string, std::string>> runScript(EPRI::LinuxBaseLibrar
         }
         apsim.close();
         std::cout << "Saving " << apsim.recent_data() << "\n";
-        result.emplace_back(metername, apsim.recent_data());
+        result.emplace_back(MeterReading{metername, apsim.recent_data()});
     }
     return result;
 }
@@ -520,7 +529,6 @@ public:
             cfg.interpret(std::string{data_, bytes_transferred});
         } else {
             std::cout << "Got an error in 'handle_read()' on line " << __LINE__ << std::endl;
-            // delete this;
         }
     }
 
@@ -566,6 +574,19 @@ void regs(Config& cfg) {
     }
 }
 
+std::ostream& operator<<(std::ostream& out, const std::vector<MeterReading>& readings) {
+    out << "{\"meterdata\":[\n";
+    auto it{readings.cbegin()};
+    auto end{readings.cend()};
+    if (it != end) {
+        out << *it++;
+        for ( ; it != end; ++it) {
+            out << ",\n" << *it;
+        }
+    }
+    return out << "\n]}";
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: APsim APaddress\n";
@@ -578,11 +599,7 @@ int main(int argc, char *argv[]) {
     while (1) {
         std::cout << "There are " << cfg.count() << " registered meters\n";
         auto meterdata{runScript(bl, cfg)};
-        std::cout << "{\"meterdata\":[\n";
-        for (const auto& pair : meterdata) {
-            std::cout << "{\"meter\":\"" << pair.first << "\",\"data\":\"" << pair.second << "\"},\n";
-        }
-        std::cout << "]}\n";
+        std::cout << meterdata << '\n';
         cfg.clear();
         std::this_thread::sleep_for(std::chrono::milliseconds{1500});
     }

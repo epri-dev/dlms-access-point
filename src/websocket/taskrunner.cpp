@@ -183,7 +183,6 @@ void session::on_read(boost::system::error_code ec, std::size_t bytes_transferre
 
     // Echo the message
     ws.text(ws.got_text());
-    std::cout << "Got MSG: " << boost::beast::buffers(buffer.data()) << "\n";
     if (buffers_to_string(buffer.data()) == "{netstat}") {
         buffer.consume(buffer.size());
         ostream(buffer) << fetchNetStats() << '\n';

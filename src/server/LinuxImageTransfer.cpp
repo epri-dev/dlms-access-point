@@ -167,7 +167,7 @@ namespace EPRI
         APDUConstants::Data_Access_Result result=APDUConstants::Data_Access_Result::object_unavailable;
         switch (pAttribute->AttributeID) {
             case ATTR_IMAGE_BLOCK_SIZE:
-            /// \todo Why doesn't `block_size` work here?
+            /// Why doesn't `block_size` work here?
 #if 1
                 pAttribute->Append(512);
 #else
@@ -192,7 +192,7 @@ namespace EPRI
                 result = APDUConstants::Data_Access_Result::success;
                 break;
             case ATTR_IMAGE_TO_ACTIVATE_INFO:
-                /// \todo implement image-to-activate-info attribute
+                /// implement image-to-activate-info attribute
             default:
                 break;
         }

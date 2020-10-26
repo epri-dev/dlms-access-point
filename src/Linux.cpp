@@ -257,7 +257,6 @@ public:
             
             case IAssociationLN::ATTR_OBJ_LIST:
                 {
-                    /// \todo Parse list of objects
                     CurrentAssociation.object_list = Response.Result.get<DLMSVector>();
                     if (COSEMType::VALUE_RETRIEVED == CurrentAssociation.object_list.GetNextValue(&Value)) 
                     {

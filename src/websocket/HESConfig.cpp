@@ -64,14 +64,12 @@ void HESConfig::load(std::istream& json) {
 }
 
 void HESConfig::load_from_string(std::string str) {
-    std::cerr << "Whoopee!  we got " << str << '\n';
     std::stringstream ss{str};
     try {
         load(ss);
     } catch(const boost::property_tree::ptree_error &e) {
         std::cerr << "Error parsing json string: " << e.what() << '\n';
     } 
-    std::cerr << "No ptree error here" << std::endl;
 }
 
 void HESConfig::save(const std::string& filename) const {

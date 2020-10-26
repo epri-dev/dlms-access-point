@@ -417,8 +417,6 @@ bool multiRead(EPRI::LinuxBaseLibrary& bl, const std::string& apaddress, const s
         return std::move(a) + ',' + b;
     };
     std::string meterset = std::accumulate(meters.begin(), meters.end(), payload_str, comma_concat);
-    std::cout << "about to read from " << apaddress << '\n';
-    std::cout << "With string: \"" << meterset << "\"\n";
 
     asio::ip::tcp::socket s(bl.get_io_service());
     asio::ip::tcp::resolver::query q(apaddress, "4059");
@@ -481,9 +479,6 @@ public:
     tcp_connection(tcp::socket socket) 
         : socket_(std::move(socket))
     {}
-    ~tcp_connection() {
-        std::cout << "Destruction of tcp_connection" << std::endl;
-    }
 
     void start() {
         std::array<uint8_t, 1024> buffer;

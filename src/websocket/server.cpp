@@ -153,15 +153,11 @@ void session::on_read(boost::system::error_code ec, std::size_t bytes_transferre
 
     // Echo the message
     ws.text(ws.got_text());
-    std::cout << "Got MSG: " << boost::beast::buffers(buffer.data()) << "\n";
-#if 1
     try {
         cfg.load_from_string(boost::beast::buffers_to_string(buffer.data()));
     } catch (...) {
-        std::cerr << "AHA!!!" << std::endl;
+        std::cerr << "Error loading configuration from string\n";
     }
-#endif
-    std::cout << "About to execute async_write to echo message\n";
     ws.async_write(
         buffer.data(),
         boost::asio::bind_executor(
@@ -174,7 +170,6 @@ void session::on_read(boost::system::error_code ec, std::size_t bytes_transferre
             )
         )
     );
-    std::cout << "Finished on_read\n";
 }
 
 void session::on_write(boost::system::error_code ec, std::size_t bytes_transferred) {
