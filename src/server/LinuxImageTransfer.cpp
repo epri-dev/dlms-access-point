@@ -215,7 +215,7 @@ namespace EPRI
                 image_id = DLMSValueGet<OCTET_STRING_CType>(value);
                 image_size = DLMSValueGet<DOUBLE_LONG_UNSIGNED_CType>(value);
                 std::cout << "image_id = {";
-                for (unsigned i; i < image_id.Size(); ++i) {
+                for (unsigned i=0; i < image_id.Size(); ++i) {
                     std::cout << std::hex << std::setw(2) << std::setfill('0') << "0x" << image_id[i] << " ";
                 }
                 std::cout << "}\n";
@@ -235,7 +235,7 @@ namespace EPRI
                 std::cout << "block_num = " << block_num << '\n';
 #if 0
                 std::cout << "image_id = {";
-                for (unsigned i; i < image_id.Size(); ++i) {
+                for (unsigned i=0; i < image_id.Size(); ++i) {
                     std::cout << std::hex << std::setw(2) << std::setfill('0') << "0x" << image_id[i] << " ";
                 }
                 std::cout << "}\n";
