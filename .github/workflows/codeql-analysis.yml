@@ -64,7 +64,7 @@ jobs:
     #    uses a compiled language
 
     - run: |
-       bash ./build.sh
+       docker build --target builder -t "beroset/dlms-access-point-builder"
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
